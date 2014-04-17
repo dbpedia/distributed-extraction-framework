@@ -1,0 +1,3 @@
+[submodule "extraction-framework"]
+	path = extraction-framework
+	url = https://github.com/dbpedia/extraction-framework.git
