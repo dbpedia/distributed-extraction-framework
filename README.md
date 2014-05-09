@@ -1,2 +1,2 @@
-distributed-exctraction-framework
+distributed-extraction-framework
 =================================
