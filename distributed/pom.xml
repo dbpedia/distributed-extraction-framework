@@ -3,16 +3,16 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <parent>
-        <artifactId>dist-extraction</artifactId>
+        <artifactId>distributed-extraction</artifactId>
         <groupId>org.dbpedia</groupId>
         <version>1.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>org.dbpedia.dist-extraction</groupId>
-    <artifactId>dist</artifactId>
+    <groupId>org.dbpedia.distributed-extraction</groupId>
+    <artifactId>distributed</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>DBpedia Distributed Dump Extraction</name>
+    <name>DBpedia Distributed Dump Extractor</name>
 
     <build>
         <plugins>
