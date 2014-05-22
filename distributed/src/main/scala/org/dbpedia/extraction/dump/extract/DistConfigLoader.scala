@@ -54,7 +54,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   /**
    * Creates ab extraction job for a specific language.
    */
-  private def createExtractionJob(lang: Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]): DistExtractionJob =
+  private def createExtractionJob(lang: Language, extractorClasses: List[Class[_ <: Extractor[_]]]): DistExtractionJob =
   {
     val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
 
