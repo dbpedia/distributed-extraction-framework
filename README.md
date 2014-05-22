@@ -44,6 +44,8 @@ You can replace `download-config-file` with `distributed/src/test/resources/li.d
 
 Before performing extractions you will need a config.properties file for general extraction configuration and a spark.config.properties file for Spark-specific configuration. Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You need to edit the base-dir before continuing.
 
+The example `distributed/src/test/resources/spark.config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077`)
+
 Now perform parallel extractions on your Spark cluster:
 
     $ ./run extraction distributed/src/test/resources/config.properties distributed/src/test/resources/spark-config.properties
