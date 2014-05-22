@@ -97,16 +97,8 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
 
       private val _sparkContext =
       {
-        val conf = new SparkConf().setMaster(distConfig.sparkMaster).setAppName(distConfig.sparkAppName)
-        for ((property, value) <- distConfig.sparkProperties)
-          conf.set(property, value)
-        conf.setSparkHome(distConfig.sparkHome)
-        conf.setJars(List("target/distributed-4.0-SNAPSHOT.jar"))
-        //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
-        conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
-        conf.set("spark.kryoserializer.buffer.mb", "50")
-        new SparkContext(conf)
+        SparkUtils.silenceSpark()
+        SparkUtils.getSparkContext(distConfig)
       }
 
       def sparkContext: SparkContext = _sparkContext
