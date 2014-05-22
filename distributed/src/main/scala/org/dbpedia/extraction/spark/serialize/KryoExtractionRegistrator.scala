@@ -14,7 +14,6 @@ class KryoExtractionRegistrator extends KryoRegistrator
 {
   override def registerClasses(kryo: Kryo)
   {
-    println("Called DBpedia registrators")
     kryo.register(classOf[WikiPage], new WikiPageSerializer)
     kryo.register(classOf[WikiTitle], new WikiTitleSerializer)
     kryo.register(classOf[Namespace])

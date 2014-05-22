@@ -5,26 +5,40 @@
     <parent>
         <artifactId>distributed-extraction</artifactId>
         <groupId>org.dbpedia</groupId>
-        <version>1.0-SNAPSHOT</version>
+        <version>4.0-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.dbpedia.distributed-extraction</groupId>
     <artifactId>distributed</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>4.0-SNAPSHOT</version>
     <name>DBpedia Distributed Dump Extractor</name>
 
     <build>
         <plugins>
             <plugin>
-
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
 
                 <configuration>
                     <launchers>
                         <launcher>
-                            <id>dist-extraction</id>
+                            <id>download</id>
+                            <mainClass>org.dbpedia.extraction.dump.download.Download</mainClass>
+                            <!--
+                            <jvmArgs>
+                                <jvmArg>-Dhttp.proxyHost=proxy.server.com</jvmArg>
+                                <jvmArg>-Dhttp.proxyPort=port</jvmArg>
+                                <jvmArg>-Dhttp.proxyUser=user</jvmArg>
+                                <jvmArg>-Dhttp.proxyPassword=password</jvmArg>
+                                <jvmArg>-Dhttp.nonProxyHosts="localhost|127.0.0.1"</jvmArg>
+                             </jvmArgs>
+                             -->
+                            <!-- ../run download config=download.properties -->
+                        </launcher>
+                        
+                        <launcher>
+                            <id>extraction</id>
                             <mainClass>org.dbpedia.extraction.dump.extract.DistExtraction</mainClass>
 
                             <jvmArgs>
@@ -79,6 +93,18 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
             <version>0.9.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.10</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.8.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
