@@ -25,30 +25,26 @@ import java.net.URL
 import java.util.logging.{Level, Logger}
 import org.apache.spark.{SparkContext, SparkConf}
 import org.dbpedia.extraction.mappings.DistRedirects
+import org.apache.spark.rdd.RDD
 
 /**
  * Loads the dump extraction configuration.
  *
  * This class configures Spark and sets up the extractors to run using Spark
  *
- * TODO: clean up. The relations between the objects, classes and methods have become a bit chaotic.
- * There is no clean separation of concerns.
- *
  * TODO: get rid of all config file parsers, use Spring
+ * TODO: Inherit ConfigLoader methods and get rid of redundant code
  */
-class DistConfigLoader(config: Config)
+class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoader(config)
 {
   private val logger = Logger.getLogger(classOf[ConfigLoader].getName)
-
-  private val numSlices = 4 //TODO: Take from config. Default should be 4.
 
   /**
    * Loads the configuration and creates extraction jobs for all configured languages.
    *
-   * @param configFile The configuration file
    * @return Non-strict Traversable over all configured extraction jobs i.e. an extractions job will not be created until it is explicitly requested.
    */
-  def getExtractionJobs(): Traversable[DistExtractionJob] =
+  override def getExtractionJobs(): Traversable[DistExtractionJob] =
   {
     // Create a non-strict view of the extraction jobs
     // non-strict because we want to create the extraction job when it is needed, not earlier
@@ -101,10 +97,11 @@ class DistConfigLoader(config: Config)
 
       private val _sparkContext =
       {
-        // Setup SparkContext. TODO: Use Config to set this up.
-        val conf = new SparkConf().setMaster("local[4]").setAppName("dbpedia-extraction")
-        conf.setSparkHome("/home/nilesh/Downloads/spark-0.8.1-incubating-bin-hadoop1")
-        conf.setJars(List("target/dist-1.0-SNAPSHOT.jar,../extraction-framework/scripts/target/scripts-4.0-SNAPSHOT.jar"))
+        val conf = new SparkConf().setMaster(distConfig.sparkMaster).setAppName(distConfig.sparkAppName)
+        for ((property, value) <- distConfig.sparkProperties)
+          conf.set(property, value)
+        conf.setSparkHome(distConfig.sparkHome)
+        conf.setJars(List("target/distributed-4.0-SNAPSHOT.jar"))
         //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
         conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
         conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
@@ -115,7 +112,7 @@ class DistConfigLoader(config: Config)
       def sparkContext: SparkContext = _sparkContext
 
       //This isn't needed here, until we make it choosable - distributed (with Spark) vs single-node extraction
-      private val _articlesSource =
+      private lazy val _articlesSource =
       {
         val articlesReaders = readers(config.source, finder, date)
 
@@ -128,20 +125,17 @@ class DistConfigLoader(config: Config)
 
       private val _articlesRDD =
       {
-        // Initialize the RDD where we'll aggregate all the WikiPages
-        var rdd = sparkContext.parallelize(Seq[WikiPage]())
-
         val cache = finder.file(date, "articles-rdd")
 
         // Getting the WikiPages from local on-disk cache saves processing time.
-        try
+        val rdd: RDD[WikiPage] = try
         {
           logger.info("Loading articles from cache file " + cache)
           val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache.getAbsolutePath)
           // count() throws org.apache.hadoop.mapred.InvalidInputException if file doesn't exist
           val count = loaded.count()
-          rdd = rdd ++ loaded
           logger.info(count + " WikiPages loaded from cache file " + cache)
+          loaded
         }
         catch
           {
@@ -150,13 +144,15 @@ class DistConfigLoader(config: Config)
               logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
               val articlesReaders = readers(config.source, finder, date)
 
-              rdd = rdd ++ sparkContext.parallelize(XMLSource.fromReaders(articlesReaders, language,
-                           title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
-                             title.namespace == Namespace.Category || title.namespace == Namespace.Template).toSeq, numSlices)
+              val newRdd = sparkContext.parallelize(XMLSource.fromReaders(articlesReaders, language,
+                                                                   title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
+                                                                     title.namespace == Namespace.Category || title.namespace == Namespace.Template).toSeq, distConfig.sparkNumSlices)
 
-              DistIOUtils.saveRDD(rdd, cache.getAbsolutePath)
+              DistIOUtils.saveRDD(newRdd, cache.getAbsolutePath)
+              newRdd
             }
           }
+
         rdd
       }
 
@@ -212,6 +208,8 @@ class DistConfigLoader(config: Config)
     new DistExtractionJob(new RootExtractor(extractor), context.articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
+  // TODO: Inherit methods below from ConfigLoader?
+
   private def writer(file: File): () => Writer =
   {
     () => IOUtils.writer(file)
@@ -224,7 +222,6 @@ class DistConfigLoader(config: Config)
 
   private def readers(source: String, finder: Finder[File], date: String): List[() => Reader] =
   {
-
     files(source, finder, date).map(reader(_))
   }
 

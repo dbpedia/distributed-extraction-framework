@@ -19,12 +19,14 @@ import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
  * @param label user readable label of this extraction job.
  */
 class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], val namespaces: Set[Namespace], destination: Destination, label: String, description: String)
+  extends ExtractionJob(extractor, null, namespaces, destination, label, description)
+// Inheriting to make this work with DistConfigLoader extends ConfigLoader
 {
   val logger = Logger.getLogger(getClass.getName)
 
   val progress = new ExtractionProgress(label, description)
 
-  def run(): Unit =
+  override def run(): Unit =
   {
     progress.start()
     destination.open()
