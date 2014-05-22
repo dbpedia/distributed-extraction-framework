@@ -52,5 +52,4 @@ Now perform parallel extractions on your Spark cluster:
 
 
 ### Testing
-If you do not want to run the unit tests, you may skip this subsection.
-
+Please see the [wiki page for Testing](https://github.com/dbpedia/distributed-extraction-framework/wiki/Testing) for detailed instructions on how to verify outputs of the distributed extraction framework by comparing them with that of the original.
