@@ -23,7 +23,7 @@
                 <configuration>
                     <launchers>
                         <launcher>
-                            <id>dist-extraction</id>
+                            <id>extraction</id>
                             <mainClass>org.dbpedia.extraction.dump.extract.DistExtraction</mainClass>
 
                             <jvmArgs>
