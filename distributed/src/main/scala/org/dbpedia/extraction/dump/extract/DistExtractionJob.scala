@@ -45,6 +45,7 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
 
     destination.close()
     progress.end()
+    rdd.sparkContext.stop()
   }
 }
 
