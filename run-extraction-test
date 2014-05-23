@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# Performs both normal sequential extraction and distributed extraction and compares the outputs.
+
+CONFIG_FILE="$1"
+SPARK_CONF_FILE="$2"
+
+echo "===================================================================="
+echo "Running sequential extraction"
+echo "===================================================================="
+./run seq-extraction $CONFIG_FILE
+mkdir /tmp/dbpedia-test-seq-extraction
+mv `grep base-dir $CONFIG_FILE | sed -ne 's/^base-dir=//p'`/*wiki/*/*wiki*.gz /tmp/dbpedia-test-seq-extraction
+
+echo "===================================================================="
+echo "Running distributed extraction"
+echo "===================================================================="
+./run extraction $CONFIG_FILE $SPARK_CONF_FILE
+mkdir /tmp/dbpedia-test-par-extraction
+cp `grep base-dir $CONFIG_FILE | sed -ne 's/^base-dir=//p'`/*wiki/*/*wiki*.gz /tmp/dbpedia-test-par-extraction
+
+echo "===================================================================="
+echo "Computing diffs:"
+echo "===================================================================="
+diffs=`diff <(gzip -dc /tmp/dbpedia-test-seq-extraction/*.gz | grep -v "^#" | sort) <(gzip -dc /tmp/dbpedia-test-par-extraction/*.gz | grep -v "completed\|started" | sort)`
+
+if [ -z "$diffs" ]; then
+	echo "Outputs match!"
+else
+	echo $diffs
+fi
+
+
+rm -rf /tmp/dbpedia-test-???-extraction
