@@ -7,7 +7,7 @@ import java.nio.file.{Paths, Files}
 import java.io.FileNotFoundException
 
 /**
- * Created by nilesh on 22/5/14.
+ * Utility functions specific to Spark
  */
 object SparkUtils
 {
