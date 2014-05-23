@@ -22,7 +22,7 @@ cp `grep base-dir $CONFIG_FILE | sed -ne 's/^base-dir=//p'`/*wiki/*/*wiki*.gz /t
 echo "===================================================================="
 echo "Computing diffs:"
 echo "===================================================================="
-diffs=`diff <(gzip -dc /tmp/dbpedia-test-seq-extraction/*.gz | grep -v "completed\|started" | sort) <(gzip -dc /tmp/dbpedia-test-par-extraction/*.gz | grep -v "completed\|started" | sort)`
+diffs=`diff <(gzip -dc /tmp/dbpedia-test-seq-extraction/*.gz | grep -v "^#" | sort) <(gzip -dc /tmp/dbpedia-test-par-extraction/*.gz | grep -v "completed\|started" | sort)`
 
 if [ -z "$diffs" ]; then
 	echo "Outputs match!"
