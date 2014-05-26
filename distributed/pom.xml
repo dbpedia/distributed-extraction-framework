@@ -16,6 +16,21 @@
 
     <build>
         <plugins>
+            <!-- A shaded jar is convenient for adding to Spark's classpath for distribution in the cluster -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>1.7</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
@@ -36,7 +51,7 @@
                              -->
                             <!-- ../run download config=download.properties -->
                         </launcher>
-                        
+
                         <launcher>
                             <id>extraction</id>
                             <mainClass>org.dbpedia.extraction.dump.extract.DistExtraction</mainClass>
@@ -93,11 +108,13 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
             <version>0.9.1</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_2.10</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
