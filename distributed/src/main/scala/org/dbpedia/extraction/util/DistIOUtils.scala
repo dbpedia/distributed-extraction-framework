@@ -17,6 +17,16 @@ import scala.reflect.ClassTag
  */
 object DistIOUtils
 {
+  private val kryo: ThreadLocal[Kryo] = new ThreadLocal[Kryo]
+  {
+    override def initialValue = getNewKryo()
+  }
+
+  /**
+   * @return returns a thread-local instance of Kryo
+   */
+  def getKryoInstance: Kryo = kryo.get()
+
   /**
    * @return new Kryo instance.
    */
@@ -37,8 +47,9 @@ object DistIOUtils
    */
   def loadRDD[T: ClassTag](sc: SparkContext, rddClass: Class[T], path: String): RDD[T] =
   {
+    val arrayOfRddClass = Class.forName("[L" + rddClass.getName + ";")
     val serializedRDD = sc.sequenceFile(path, classOf[NullWritable], classOf[BytesWritable])
-    serializedRDD.values.map(x => rddClass.cast(deserialize(x.getBytes, rddClass)))
+    serializedRDD.values.flatMap(x => deserialize(x.getBytes, arrayOfRddClass).asInstanceOf[Array[T]])
   }
 
   /**
@@ -49,7 +60,8 @@ object DistIOUtils
    */
   def saveRDD(rdd: RDD[_ <: AnyRef], path: String)
   {
-    rdd.map(x => (NullWritable.get(), new BytesWritable(serialize(x)))).saveAsSequenceFile(path)
+    rdd.mapPartitions(iter => iter.grouped(50).map(_.toArray))
+    .map(x => (NullWritable.get(), new BytesWritable(serialize(x)))).saveAsSequenceFile(path)
   }
 
   //  TODO: Add unit tests with code similar to:
@@ -86,10 +98,9 @@ object DistIOUtils
    */
   def serialize(x: Any): Array[Byte] =
   {
-    val kryo = getNewKryo()
     val stream = new ByteArrayOutputStream()
     val output = new Output(stream)
-    kryo.writeObject(output, x)
+    getKryoInstance.writeObject(output, x)
     output.close()
     stream.toByteArray
   }
@@ -101,7 +112,6 @@ object DistIOUtils
    */
   def deserialize[T](x: Array[Byte], c: Class[T]) =
   {
-    val kryo = getNewKryo()
-    kryo.readObject(new Input(new ByteArrayInputStream(x)), c)
+    getKryoInstance.readObject(new Input(new ByteArrayInputStream(x)), c)
   }
 }
