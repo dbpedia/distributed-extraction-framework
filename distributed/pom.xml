@@ -16,6 +16,40 @@
 
     <build>
         <plugins>
+            <!-- A shaded jar is convenient for adding to Spark's classpath for distribution in the cluster -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>1.7</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <artifactSet>
+                                <!--<excludes>-->
+                                <!--<exclude>org.apache.spark:*</exclude>-->
+                                <!--<exclude>junit:junit</exclude>-->
+                                <!--<exclude>org.apache.maven:*</exclude>-->
+                                <!--</excludes>-->
+                            </artifactSet>
+                            <!--<filters>-->
+                            <!--<filter>-->
+                            <!--<artifact>*:*</artifact>-->
+                            <!--<excludes>-->
+                            <!--<exclude>META-INF/*.SF</exclude>-->
+                            <!--<exclude>META-INF/*.DSA</exclude>-->
+                            <!--<exclude>META-INF/*.RSA</exclude>-->
+                            <!--</excludes>-->
+                            <!--</filter>-->
+                            <!--</filters>-->
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
@@ -93,11 +127,13 @@
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
             <version>0.9.1</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.scalatest</groupId>
             <artifactId>scalatest_2.10</artifactId>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
