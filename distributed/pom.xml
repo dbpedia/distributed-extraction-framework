@@ -27,25 +27,6 @@
                         <goals>
                             <goal>shade</goal>
                         </goals>
-                        <configuration>
-                            <artifactSet>
-                                <!--<excludes>-->
-                                <!--<exclude>org.apache.spark:*</exclude>-->
-                                <!--<exclude>junit:junit</exclude>-->
-                                <!--<exclude>org.apache.maven:*</exclude>-->
-                                <!--</excludes>-->
-                            </artifactSet>
-                            <!--<filters>-->
-                            <!--<filter>-->
-                            <!--<artifact>*:*</artifact>-->
-                            <!--<excludes>-->
-                            <!--<exclude>META-INF/*.SF</exclude>-->
-                            <!--<exclude>META-INF/*.DSA</exclude>-->
-                            <!--<exclude>META-INF/*.RSA</exclude>-->
-                            <!--</excludes>-->
-                            <!--</filter>-->
-                            <!--</filters>-->
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
@@ -70,7 +51,7 @@
                              -->
                             <!-- ../run download config=download.properties -->
                         </launcher>
-                        
+
                         <launcher>
                             <id>extraction</id>
                             <mainClass>org.dbpedia.extraction.dump.extract.DistExtraction</mainClass>
