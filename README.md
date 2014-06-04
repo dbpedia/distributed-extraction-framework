@@ -24,11 +24,11 @@ Please see the [official docs](http://spark.apache.org/docs/latest/spark-standal
 
 ## How to Build
 
-Clone the latest version of the repo and switch to nildev branch:
+Clone the latest version of the repo and switch to stage branch:
 
     $ git clone https://github.com/dbpedia/distributed-extraction-framework.git
     $ cd distributed-extraction-framework
-    $ git checkout nildev
+    $ git checkout stage
     $ mvn clean install -Dmaven.test.skip=true # Compiles the code without running tests
 
 ## Dump-based Distributed Extraction
@@ -42,7 +42,9 @@ In the root directory run the following commands
 
 You can replace `download-config-file` with `distributed/src/test/resources/li.download.properties`, after changing the `base-dir` option in the `li.download.properties` to a directory where you want to perform the dataset downloads and extractions.
 
-Before performing extractions you will need a config.properties file for general extraction configuration and a spark.config.properties file for Spark-specific configuration. Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You need to edit the base-dir before continuing.
+Before performing extractions you will need a config.properties file for general extraction configuration and a spark.config.properties file for Spark-specific configuration. Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction.
+
+You need to edit the base-dir before continuing.
 
 The example `distributed/src/test/resources/spark.config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077`)
 
