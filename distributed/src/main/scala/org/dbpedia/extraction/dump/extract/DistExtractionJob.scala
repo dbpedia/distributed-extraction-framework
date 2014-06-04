@@ -8,6 +8,7 @@ import org.dbpedia.extraction.wikiparser.Namespace
 import org.dbpedia.util.Exceptions
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
+import org.dbpedia.extraction.util.SparkUtils
 
 /**
  * Executes a extraction using Spark.
@@ -32,19 +33,17 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
     destination.open()
 
     val results: RDD[Seq[Quad]] = rdd.map(DistExtractionJob.mapper(extractor, namespaces))
-    //FIXME: This collects all results to driver node - may run out of memory for large result sets.
-    //Use foreach or something like that.
-    val quads = results.collect()
-    //FIXME: Progress will give wrong time values because main processing is done in bulk parallel before counting pages.
-    //Using foreach will fix this. Need to figure it out. Causing serialization problems.
-    for (i <- quads)
+
+    val iter = SparkUtils.rddToLocalIterator(results)
+    while (iter.hasNext)
     {
       progress.countPage(true)
-      destination.write(i)
+      destination.write(iter.next())
     }
 
     destination.close()
     progress.end()
+    
     rdd.sparkContext.stop()
   }
 }

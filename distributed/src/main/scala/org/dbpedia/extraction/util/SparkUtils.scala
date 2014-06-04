@@ -5,12 +5,19 @@ import org.dbpedia.extraction.dump.extract.DistConfig
 import org.apache.log4j.{Logger, Level}
 import java.nio.file.{Paths, Files}
 import java.io.FileNotFoundException
+import scala.reflect.ClassTag
+import org.apache.spark.rdd.RDD
 
 /**
  * Utility functions specific to Spark
  */
 object SparkUtils
 {
+  /**
+   * Stores the SparkContext instance.
+   */
+  private var sc: SparkContext = null
+
   /**
    * Set all loggers to the given log level.  Returns a map of the value of every logger
    * @param level
@@ -45,26 +52,46 @@ object SparkUtils
    */
   def getSparkContext(config: DistConfig) =
   {
-    val conf = new SparkConf().setMaster(config.sparkMaster).setAppName(config.sparkAppName)
-    for ((property, value) <- config.sparkProperties)
-      conf.set(property, value)
-    conf.setSparkHome(config.sparkHome)
-    val distJarName = if (Files.exists(Paths.get("target/distributed-4.0-SNAPSHOT.jar")))
+    if (sc == null)
     {
-      "target/distributed-4.0-SNAPSHOT.jar"
-    } else if (Files.exists(Paths.get("distributed/target/distributed-4.0-SNAPSHOT.jar")))
-    {
-      "distributed/target/distributed-4.0-SNAPSHOT.jar"
-    } else
-    {
-      throw new FileNotFoundException("distributed-4.0-SNAPSHOT.jar cannot be found in distributed/target. Please run mvn install -Dmaven.tests.skip=true to build JAR first.")
-    }
+      val conf = new SparkConf().setMaster(config.sparkMaster).setAppName(config.sparkAppName)
+      for ((property, value) <- config.sparkProperties)
+        conf.set(property, value)
+      conf.setSparkHome(config.sparkHome)
+      val distJarName = if (Files.exists(Paths.get("target/distributed-4.0-SNAPSHOT.jar")))
+      {
+        "target/distributed-4.0-SNAPSHOT.jar"
+      } else if (Files.exists(Paths.get("distributed/target/distributed-4.0-SNAPSHOT.jar")))
+      {
+        "distributed/target/distributed-4.0-SNAPSHOT.jar"
+      } else
+      {
+        throw new FileNotFoundException("distributed-4.0-SNAPSHOT.jar cannot be found in distributed/target. Please run mvn install -Dmaven.tests.skip=true to build JAR first.")
+      }
 
-    conf.setJars(List(distJarName))
-    //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
-    conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-    conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
-    conf.set("spark.kryoserializer.buffer.mb", "50")
-    new SparkContext(conf)
+      conf.setJars(List(distJarName))
+      //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
+      conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+      conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
+      conf.set("spark.kryoserializer.buffer.mb", "50")
+      sc = new SparkContext(conf)
+    }
+    sc
+  }
+
+  /**
+   * Return an iterator that contains all of the elements in given RDD.
+   * The iterator will consume as much memory as the largest partition in the RDD.
+   *
+   * @param rdd
+   * @return iterator for rdd's elements
+   */
+  def rddToLocalIterator[T: ClassTag](rdd: RDD[T]): Iterator[T] =
+  {
+    def collectPartition(p: Int): Array[T] =
+    {
+      sc.runJob(rdd, (iter: Iterator[T]) => iter.toArray, Seq(p), allowLocal = false).head
+    }
+    (0 until rdd.partitions.length).iterator.flatMap(i => collectPartition(i))
   }
 }
