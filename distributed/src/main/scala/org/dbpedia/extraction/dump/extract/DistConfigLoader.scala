@@ -1,15 +1,11 @@
 package org.dbpedia.extraction.dump.extract
 
-import org.dbpedia.extraction.destinations.CompositeDestination
-import org.dbpedia.extraction.destinations.DatasetDestination
-import org.dbpedia.extraction.destinations.DeduplicatingDestination
-import org.dbpedia.extraction.destinations.Destination
-import org.dbpedia.extraction.destinations.MarkerDestination
-import org.dbpedia.extraction.destinations.WriterDestination
+import org.dbpedia.extraction.destinations._
 import org.dbpedia.extraction.mappings._
 import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.dbpedia.extraction.sources.{Source, WikiPage, XMLSource, WikiSource}
 import org.dbpedia.extraction.util._
+import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.dbpedia.extraction.util.RichFile.wrapFile
 import org.dbpedia.extraction.wikiparser.Namespace
 import scala.collection.mutable.{ArrayBuffer, HashMap}
@@ -18,6 +14,13 @@ import java.net.URL
 import java.util.logging.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.dump.download.Download
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.{Text, LongWritable}
+import scala.xml.XML
+import org.dbpedia.extraction.spark.io.XmlInputFormat
+import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
+import org.apache.hadoop.fs.Path
 
 /**
  * Loads the dump extraction configuration.
@@ -49,31 +52,22 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   /**
    * Creates ab extraction job for a specific language.
    */
-  private def createExtractionJob(lang: Language, extractorClasses: List[Class[_ <: Extractor[_]]]): DistExtractionJob =
+  private def createExtractionJob(lang: Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]): DistExtractionJob =
   {
-    val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
-
+    // Finder[Path] works with Hadoop's FileSystem class - operates on HDFS, or the local file system depending
+    // upon whether we are running in local mode or distributed/cluster mode.
+    val finder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
-
-    val _articlesSource =
-    {
-      val articlesReaders = readers(config.source, finder, date)
-
-      XMLSource.fromReaders(articlesReaders, lang,
-                            title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
-                              title.namespace == Namespace.Category || title.namespace == Namespace.Template)
-    }
 
     SparkUtils.silenceSpark()
     val sparkContext = SparkUtils.getSparkContext(distConfig)
 
-    val cache = finder.file(date, "articles-rdd")
-
     // Getting the WikiPages from local on-disk cache saves processing time.
+    val cache = finder.file(date, "articles-rdd")
     val articlesRDD: RDD[WikiPage] = try
     {
       logger.info("Loading articles from cache file " + cache)
-      val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache.getAbsolutePath)
+      val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache)
       // count() throws org.apache.hadoop.mapred.InvalidInputException if file doesn't exist
       val count = loaded.count()
       logger.info(count + " WikiPages loaded from cache file " + cache)
@@ -84,11 +78,34 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
         case ex: Exception =>
         {
           logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
-          val articlesReaders = readers(config.source, finder, date)
 
-          val newRdd = sparkContext.parallelize(_articlesSource.toSeq, distConfig.sparkNumSlices)
+          // Add input sources
+          val job = new Job(hadoopConfiguration)
+          for (file <- files(config.source, finder, date))
+            FileInputFormat.addInputPath(job, file)
 
-          DistIOUtils.saveRDD(newRdd, cache.getAbsolutePath)
+          val updatedConf = job.getConfiguration
+
+          // Create RDD with <page>...</page> elements.
+          val rawArticlesRDD: RDD[(LongWritable, Text)] =
+            sparkContext.newAPIHadoopRDD(updatedConf, classOf[XmlInputFormat], classOf[LongWritable], classOf[Text])
+
+          // Function to parse a <page>...</page> string into a WikiPage.
+          val wikiPageParser: (((LongWritable, Text)) => WikiPage) =
+            keyValue => XMLSource.fromXML(XML.loadString("<mediawiki>" + keyValue._2.toString + "</mediawiki>"), lang).toSeq.head
+          val mapper = SparkUtils.kryoWrapFunction(wikiPageParser)
+
+          val newRdd = rawArticlesRDD.map(mapper).filter
+                       {
+                         page =>
+                           page.title.namespace == Namespace.Main ||
+                             page.title.namespace == Namespace.File ||
+                             page.title.namespace == Namespace.Category ||
+                             page.title.namespace == Namespace.Template
+                       }.cache()
+
+          DistIOUtils.saveRDD(newRdd, cache)
+          logger.info("Parsed WikiPages written to cache file " + cache)
           newRdd
         }
       }
@@ -96,7 +113,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
     val _redirects =
     {
       val cache = finder.file(date, "template-redirects.obj")
-      DistRedirects.load(articlesRDD, cache, lang)
+      DistRedirects.load(articlesRDD, cache, lang, hadoopConfiguration)
     }
 
     val contextBroadcast = sparkContext.broadcast(new DumpExtractionContext
@@ -133,7 +150,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
 
       def mappings: Mappings = _mappings
 
-      def articlesSource: Source = _articlesSource
+      def articlesSource: Source = null // Not needing raw article source
 
       def redirects: Redirects = _redirects
 
@@ -142,7 +159,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
         val cache = finder.file(date, "disambiguations-ids.obj")
         try
         {
-          Disambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language)
+          DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language, hadoopConfiguration)
         } catch
           {
             case ex: Exception =>
@@ -157,10 +174,11 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
 
     val context = new DistDumpExtractionContext(contextBroadcast)
 
-    //Extractors
+    // Extractors
     val extractor = CompositeParseExtractor.load(extractorClasses, context)
     val datasets = extractor.datasets
 
+    // Setup destinations for each dataset
     val formatDestinations = new ArrayBuffer[Destination]()
     for ((suffix, format) <- config.formats)
     {
@@ -175,13 +193,13 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
       formatDestinations += new DatasetDestination(datasetDestinations)
     }
 
-    val destination = new MarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false)
+    val destination = new DistMarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false, hadoopConfiguration)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
     new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
-  // TODO: Inherit methods below from ConfigLoader?
+  implicit def hadoopConfiguration: Configuration = distConfig.hadoopConf
 
   //language-independent val
   private val _ontology =
@@ -209,7 +227,8 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
       val finder = new Finder[File](config.dumpDir, Language("commons"), config.wikiName)
       val date = latestDate(finder)
       XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
-    } catch
+    }
+    catch
       {
         case ex: Exception =>
           logger.info("Could not load disambiguations - error: " + ex.getMessage)
@@ -218,22 +237,22 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   }
 
 
-  private def writer(file: File): () => Writer =
+  private def writer[T <% FileLike[_]](file: T): () => Writer =
   {
     () => IOUtils.writer(file)
   }
 
-  private def reader(file: File): () => Reader =
+  private def reader[T <% FileLike[_]](file: T): () => Reader =
   {
     () => IOUtils.reader(file)
   }
 
-  private def readers(source: String, finder: Finder[File], date: String): List[() => Reader] =
+  private def readers[T <% FileLike[_]](source: String, finder: Finder[T], date: String): List[() => Reader] =
   {
     files(source, finder, date).map(reader(_))
   }
 
-  private def files(source: String, finder: Finder[File], date: String): List[File] =
+  private def files[T <% FileLike[_]](source: String, finder: Finder[T], date: String): List[T] =
   {
 
     val files = if (source.startsWith("@"))
