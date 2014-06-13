@@ -7,6 +7,7 @@ import java.nio.file.{Paths, Files}
 import java.io.FileNotFoundException
 import scala.reflect.ClassTag
 import org.apache.spark.rdd.RDD
+import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 
 /**
  * Utility functions specific to Spark
@@ -66,7 +67,7 @@ object SparkUtils
         "distributed/target/distributed-4.0-SNAPSHOT.jar"
       } else
       {
-        throw new FileNotFoundException("distributed-4.0-SNAPSHOT.jar cannot be found in distributed/target. Please run mvn install -Dmaven.tests.skip=true to build JAR first.")
+        throw new FileNotFoundException("distributed-4.0-SNAPSHOT.jar cannot be found in distributed/target. Please run mvn install -Dmaven.test.skip=true to build JAR first.")
       }
 
       conf.setJars(List(distJarName))
@@ -93,5 +94,22 @@ object SparkUtils
       sc.runJob(rdd, (iter: Iterator[T]) => iter.toArray, Seq(p), allowLocal = false).head
     }
     (0 until rdd.partitions.length).iterator.flatMap(i => collectPartition(i))
+  }
+
+  /**
+   * Returns the function object wrapped inside a KryoSerializationWrapper.
+   * This is useful for having Kryo-serialization for Spark closures.
+   *
+   * @param function
+   * @return
+   */
+  def kryoWrapFunction[T, U](function: (T => U)): (T => U) =
+  {
+    def genMapper(kryoWrapper: KryoSerializationWrapper[(T => U)])(input: T): U =
+    {
+      kryoWrapper.value.apply(input)
+    }
+
+    genMapper(KryoSerializationWrapper(function)) _
   }
 }
