@@ -2,15 +2,14 @@ package org.dbpedia.extraction.mappings
 
 import java.util.logging.{Level, Logger}
 import org.dbpedia.extraction.sources.WikiPage
-import collection.mutable.{HashSet, HashMap}
 import java.io._
-import util.control.ControlThrowable
 import org.dbpedia.extraction.wikiparser._
-import org.dbpedia.extraction.util.Language
+import org.dbpedia.extraction.util.{DistIOUtils, Language}
 import org.dbpedia.extraction.wikiparser.impl.wikipedia.Redirect
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 /**
  * Holds the redirects between wiki pages
@@ -52,18 +51,17 @@ object DistRedirects
 
     val dir = cache.getParentFile
     if (!dir.exists && !dir.mkdirs) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
-    val outputStream = new ObjectOutputStream(new FileOutputStream(cache))
+    val output = new Output(new BufferedOutputStream(new FileOutputStream(cache)))
     try
     {
-      outputStream.writeObject(redirects.map)
+      DistIOUtils.getKryoInstance.writeClassAndObject(output, redirects.map)
+      logger.info(redirects.map.size + " redirects written to cache file " + cache)
+      redirects
     }
     finally
     {
-      outputStream.close()
+      output.close()
     }
-    logger.info(redirects.map.size + " redirects written to cache file " + cache)
-
-    redirects
   }
 
   /**
@@ -72,17 +70,16 @@ object DistRedirects
   private def loadFromCache(cache: File): Redirects =
   {
     logger.info("Loading redirects from cache file " + cache)
-    val inputStream = new ObjectInputStream(new FileInputStream(cache))
+    val input = new Input(new BufferedInputStream(new FileInputStream(cache)))
     try
     {
-      val redirects = new Redirects(inputStream.readObject().asInstanceOf[Map[String, String]])
-
+      val redirects = new Redirects(DistIOUtils.getKryoInstance.readClassAndObject(input).asInstanceOf[Map[String, String]])
       logger.info(redirects.map.size + " redirects loaded from cache file " + cache)
       redirects
     }
     finally
     {
-      inputStream.close()
+      input.close()
     }
   }
 
