@@ -10,14 +10,19 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 import com.esotericsoftware.kryo.io.{Input, Output}
+import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.conf.Configuration
 
 /**
+ * Distributed version of Redirects; uses Spark to compute redirects.
+ *
  * Holds the redirects between wiki pages
  * At the moment, only redirects between Templates are considered
  *
- * This class uses Spark to compute the redirects.
- *
  * @param map Redirect map. Contains decoded template titles.
+ *
+ * @see Redirects
  */
 class DistRedirects(override val map: Map[String, String]) extends Redirects(map)
 
@@ -29,13 +34,23 @@ object DistRedirects
 {
   private val logger = Logger.getLogger(classOf[DistRedirects].getName)
 
+  private implicit var hadoopConfImpl: Configuration = null
+
   /**
    * Tries to load the redirects from a cache file.
    * If not successful, loads the redirects from an RDD.
    * Updates the cache after loading the redirects from the source.
+   *
+   * @param rdd RDD of WikiPages
+   * @param cache Path to cache file
+   * @param lang Language
+   * @param hadoopConf Configuration
+   * @return Redirects object
    */
-  def load(rdd: RDD[WikiPage], cache: File, lang: Language): Redirects =
+  def load(rdd: RDD[WikiPage], cache: Path, lang: Language, hadoopConf: Configuration): Redirects =
   {
+    this.hadoopConfImpl = hadoopConf
+
     //Try to load redirects from the cache
     try
     {
@@ -49,9 +64,10 @@ object DistRedirects
     //Load redirects from RDD
     val redirects = loadFromRDD(rdd, lang)
 
-    val dir = cache.getParentFile
-    if (!dir.exists && !dir.mkdirs) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
-    val output = new Output(new BufferedOutputStream(new FileOutputStream(cache)))
+    val dir = cache.getParent
+    val fs = dir.getFileSystem(hadoopConf)
+    if (!dir.exists && !fs.mkdirs(dir)) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
+    val output = new Output(new BufferedOutputStream(cache.outputStream()))
     try
     {
       DistIOUtils.getKryoInstance.writeClassAndObject(output, redirects.map)
@@ -67,10 +83,10 @@ object DistRedirects
   /**
    * Loads the redirects from a cache file.
    */
-  private def loadFromCache(cache: File): Redirects =
+  private def loadFromCache(cache: Path): Redirects =
   {
     logger.info("Loading redirects from cache file " + cache)
-    val input = new Input(new BufferedInputStream(new FileInputStream(cache)))
+    val input = new Input(new BufferedInputStream(cache.inputStream()))
     try
     {
       val redirects = new Redirects(DistIOUtils.getKryoInstance.readClassAndObject(input).asInstanceOf[Map[String, String]])
@@ -85,6 +101,10 @@ object DistRedirects
 
   /**
    * Loads the redirects from a source.
+   *
+   * @param rdd RDD of WikiPages
+   * @param lang Language
+   * @return Redirects object
    */
   def loadFromRDD(rdd: RDD[WikiPage], lang: Language): Redirects =
   {
