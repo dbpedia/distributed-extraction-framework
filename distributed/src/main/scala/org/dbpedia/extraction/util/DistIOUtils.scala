@@ -11,6 +11,10 @@ import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.spark.SparkContext._
 import scala.reflect.ClassTag
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.lib.input.{SequenceFileInputFormat, FileInputFormat}
 
 /**
  * Kryo file operations helper methods
@@ -53,6 +57,24 @@ object DistIOUtils
   }
 
   /**
+   * Loads an RDD saved as a SequenceFile containing objects serialized by Kryo,
+   * with NullWritable keys and BytesWritable values.
+   * @param sc SparkContext
+   * @param path String path to existing file. Can be on local file system or HDFS, S3 etc. See Spark docs.
+   * @return deserialized RDD
+   */
+  def loadRDD[T: ClassTag](sc: SparkContext, rddClass: Class[T], path: Path): RDD[T] =
+  {
+    val arrayOfRddClass = Class.forName("[L" + rddClass.getName + ";")
+    val conf = new Configuration()
+    val job = new Job()
+    FileInputFormat.addInputPath(job, path)
+    val updatedConf = job.getConfiguration
+    val serializedRDD = sc.newAPIHadoopRDD(updatedConf, classOf[SequenceFileInputFormat[NullWritable, BytesWritable]], classOf[NullWritable], classOf[BytesWritable])
+    serializedRDD.values.flatMap(x => deserialize(x.getBytes, arrayOfRddClass).asInstanceOf[Array[T]])
+  }
+
+  /**
    * Saves an RDD as a SequenceFile containing objects serialized by Kryo,
    * with NullWritable keys and BytesWritable values.
    * @param rdd Spark RDD
@@ -62,6 +84,18 @@ object DistIOUtils
   {
     rdd.mapPartitions(iter => iter.grouped(50).map(_.toArray))
     .map(x => (NullWritable.get(), new BytesWritable(serialize(x)))).saveAsSequenceFile(path)
+  }
+
+  /**
+   * Saves an RDD as a SequenceFile containing objects serialized by Kryo,
+   * with NullWritable keys and BytesWritable values.
+   * @param rdd Spark RDD
+   * @param path String path to existing file. Can be on local file system or HDFS, S3 etc. See Spark docs.
+   */
+  def saveRDD(rdd: RDD[_ <: AnyRef], path: Path)
+  {
+    rdd.mapPartitions(iter => iter.grouped(50).map(_.toArray))
+    .map(x => (NullWritable.get(), new BytesWritable(serialize(x)))).saveAsSequenceFile(path.toString)
   }
 
   //  TODO: Add unit tests with code similar to:
