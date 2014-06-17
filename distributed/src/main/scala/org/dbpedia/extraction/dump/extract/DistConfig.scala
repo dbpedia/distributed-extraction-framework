@@ -58,11 +58,35 @@ class DistConfig(config: Properties)
     hadoopConf
   }
 
-  /** Dump directory. Note that Config.dumpDir is ignored in the distributed framework. */
-  val dumpDir = getValue(config, "base-dir", required = true)(new Path(_))
-  if (!dumpDir.exists)
-  {
-    val hadoopHint = if (hadoopCoreConf == null || hadoopHdfsConf == null || hadoopMapredConf == null) " Make sure you configured Hadoop correctly and the directory exists on the configured file system." else ""
-    throw sys.error("Dir " + dumpDir + " does not exist." + hadoopHint)
+  /** Dump directory. Fall back to Config.dumpDir if this is not defined. */
+  val dumpDir = getOptionalPath("base-dir")
+
+  /**
+   * Local ontology file, downloaded for speed and reproducibility
+   * Fall back to Config.ontologyFile if this is not defined.
+   */
+  val ontologyFile = getOptionalPath("ontology")
+
+  /**
+   * Local mappings files, downloaded for speed and reproducibility
+   * Fall back to Config.mappingsDir if this is not defined.
+   */
+  val mappingsDir = getOptionalPath("mappings")
+
+  /**
+   * Creates a Path from the given property (null if the property is absent) and wraps it in an Option.
+   *
+   * @param property String property key
+   * @throws RuntimeException if the property is defined but the path does not exist
+   * @return Option wrapping the obtained Path
+   */
+  def getOptionalPath(property: String): Option[Path] = {
+    val somePath = Option(getValue(config, property, required = false)(dir => if(dir == null) null else new Path(dir)))
+    if (somePath.isDefined && !somePath.get.exists)
+    {
+      val hadoopHint = if (hadoopCoreConf == null || hadoopHdfsConf == null || hadoopMapredConf == null) " Make sure you configured Hadoop correctly and the directory exists on the configured file system." else ""
+      throw sys.error("Dir " + somePath.get + " does not exist." + hadoopHint)
+    }
+    somePath
   }
 }

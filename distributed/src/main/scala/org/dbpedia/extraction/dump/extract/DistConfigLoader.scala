@@ -6,7 +6,6 @@ import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.dbpedia.extraction.sources.{Source, WikiPage, XMLSource, WikiSource}
 import org.dbpedia.extraction.util._
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
-import org.dbpedia.extraction.util.RichFile.wrapFile
 import org.dbpedia.extraction.wikiparser.Namespace
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import java.io._
@@ -54,9 +53,12 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
    */
   private def createExtractionJob(lang: Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]): DistExtractionJob =
   {
+    // If distConfig.dumpDir is not defined, fall back to config.dumpDir
+    val dumpDir = distConfig.dumpDir.getOrElse(new Path(config.dumpDir.getAbsolutePath))
+
     // Finder[Path] works with Hadoop's FileSystem class - operates on HDFS, or the local file system depending
     // upon whether we are running in local mode or distributed/cluster mode.
-    val finder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
+    val finder = new Finder[Path](dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
 
     SparkUtils.silenceSpark()
@@ -128,10 +130,18 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
       {
         val namespace = Namespace.mappings(language)
 
-        if (config.mappingsDir != null && config.mappingsDir.isDirectory)
+        // If distConfig.mappingsDir is not defined, fall back to config.mappingsDir
+        val mappingsDir = distConfig.mappingsDir.getOrElse
+                          {
+                            if (config.mappingsDir == null)
+                              null
+                            else
+                              new Path(config.mappingsDir.getAbsolutePath)
+                          }
+        if (mappingsDir != null && mappingsDir.isDirectory)
         {
-          val file = new File(config.mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
-          XMLSource.fromFile(file, Language.Mappings)
+          val path = new Path(mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
+          XMLSource.fromReader(reader(path), Language.Mappings)
         }
         else
         {
@@ -204,9 +214,17 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   //language-independent val
   private val _ontology =
   {
-    val ontologySource = if (config.ontologyFile != null && config.ontologyFile.isFile)
+    // If distConfig.ontologyFile is not defined, fall back to config.ontologyFile
+    val ontologyFile = distConfig.ontologyFile.getOrElse
+                       {
+                         if (config.ontologyFile == null)
+                           null
+                         else
+                           new Path(config.ontologyFile.getAbsolutePath)
+                       }
+    val ontologySource = if (ontologyFile != null && ontologyFile.isFile)
     {
-      XMLSource.fromFile(config.ontologyFile, Language.Mappings)
+      XMLSource.fromReader(reader(ontologyFile), Language.Mappings)
     }
     else
     {
@@ -224,7 +242,9 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   {
     try
     {
-      val finder = new Finder[File](config.dumpDir, Language("commons"), config.wikiName)
+      // If distConfig.dumpDir is not defined, fall back to config.dumpDir
+      val dumpDir = distConfig.dumpDir.getOrElse(new Path(config.dumpDir.getAbsolutePath))
+      val finder = new Finder[Path](dumpDir, Language("commons"), config.wikiName)
       val date = latestDate(finder)
       XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
     }
