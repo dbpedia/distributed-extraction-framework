@@ -1,6 +1,6 @@
 package org.dbpedia.extraction.util
 
-import java.io.{OutputStream, InputStream}
+import java.io.{IOException, OutputStream, InputStream}
 import scala.language.implicitConversions
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
@@ -40,7 +40,10 @@ class RichHadoopPath(path: Path, conf: Configuration) extends FileLike[Path] {
     }
   }
 
-  override def delete(recursive: Boolean = false): Unit = fs.delete(path, recursive)
+  override def delete(recursive: Boolean = false): Unit = {
+    if(!fs.delete(path, recursive))
+      throw new IOException("failed to delete path ["+path+"]")
+  }
 
   def deleteConfirm(recursive: Boolean = false): Boolean = fs.delete(path, recursive)
 
