@@ -34,8 +34,6 @@ object DistRedirects
 {
   private val logger = Logger.getLogger(classOf[DistRedirects].getName)
 
-  private implicit var hadoopConfImpl: Configuration = null
-
   /**
    * Tries to load the redirects from a cache file.
    * If not successful, loads the redirects from an RDD.
@@ -47,10 +45,8 @@ object DistRedirects
    * @param hadoopConf Configuration
    * @return Redirects object
    */
-  def load(rdd: RDD[WikiPage], cache: Path, lang: Language, hadoopConf: Configuration): Redirects =
+  def load(rdd: RDD[WikiPage], cache: Path, lang: Language)(implicit hadoopConf: Configuration): Redirects =
   {
-    this.hadoopConfImpl = hadoopConf
-
     //Try to load redirects from the cache
     try
     {
@@ -83,7 +79,7 @@ object DistRedirects
   /**
    * Loads the redirects from a cache file.
    */
-  private def loadFromCache(cache: Path): Redirects =
+  private def loadFromCache(cache: Path)(implicit hadoopConf: Configuration): Redirects =
   {
     logger.info("Loading redirects from cache file " + cache)
     val input = new Input(new BufferedInputStream(cache.inputStream()))

@@ -62,7 +62,7 @@ class DistRedirectsTest extends FunSuite
     (distConfig, articleSource, rdd, lang, date, distFinder)
   }
 
-  def hadoopConfiguration: Configuration = distConfig.hadoopConf
+  implicit def hadoopConfiguration: Configuration = distConfig.hadoopConf
 
   test("Verify DistRedirects.loadFromRDD output")
   {
@@ -74,12 +74,12 @@ class DistRedirectsTest extends FunSuite
   test("Verify DistRedirects.load output")
   {
     val cache = distFinder.file(date, "template-redirects.obj")
-    var distRedirects = DistRedirects.load(rdd, cache, language, hadoopConfiguration)
+    var distRedirects = DistRedirects.load(rdd, cache, language)
     var redirects = Redirects.loadFromSource(articleSource, language)
     assertEquals("Testing DistRedirects.loadFromRDD failed!", redirects.map, distRedirects.map)
 
     // Try again so that cache gets used
-    distRedirects = DistRedirects.load(rdd, cache, language, hadoopConfiguration)
+    distRedirects = DistRedirects.load(rdd, cache, language)
     redirects = Redirects.loadFromSource(articleSource, language)
     assertEquals("Testing DistRedirects.loadFromRDD failed!", redirects.map, distRedirects.map)
   }

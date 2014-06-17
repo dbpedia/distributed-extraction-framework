@@ -113,7 +113,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
     val _redirects =
     {
       val cache = finder.file(date, "template-redirects.obj")
-      DistRedirects.load(articlesRDD, cache, lang, hadoopConfiguration)
+      DistRedirects.load(articlesRDD, cache, lang)
     }
 
     val contextBroadcast = sparkContext.broadcast(new DumpExtractionContext
@@ -159,7 +159,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
         val cache = finder.file(date, "disambiguations-ids.obj")
         try
         {
-          DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language, hadoopConfiguration)
+          DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language)
         } catch
           {
             case ex: Exception =>

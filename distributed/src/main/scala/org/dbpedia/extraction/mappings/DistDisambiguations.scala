@@ -19,9 +19,6 @@ object DistDisambiguations
 {
   private val logger = Logger.getLogger(classOf[DistDisambiguations].getName)
 
-  /** Implicit Configuration needed for RichHadoopPath operations */
-  private implicit var hadoopConfImpl: Configuration = null
-
   /**
    * Loads disambiguations from cache/source reader.
    *
@@ -31,10 +28,8 @@ object DistDisambiguations
    * @param hadoopConf Configuration
    * @return Disambiguations object
    */
-  def load(reader : () => Reader, cache : Path, lang : Language, hadoopConf: Configuration) : Disambiguations =
+  def load(reader : () => Reader, cache : Path, lang : Language)(implicit hadoopConf: Configuration) : Disambiguations =
   {
-    this.hadoopConfImpl = hadoopConf
-
     try
     {
       return loadFromCache(cache)
@@ -66,7 +61,7 @@ object DistDisambiguations
   /**
    * Loads the disambiguations from a cache file.
    */
-  private def loadFromCache(cache : Path) : Disambiguations =
+  private def loadFromCache(cache : Path)(implicit hadoopConf: Configuration) : Disambiguations =
   {
     logger.info("Loading disambiguations from cache file " + cache)
     val input = new Input(new BufferedInputStream(cache.inputStream()))
