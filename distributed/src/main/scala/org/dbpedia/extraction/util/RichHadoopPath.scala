@@ -8,13 +8,6 @@ import java.nio.file.NotDirectoryException
 import RichHadoopPath._
 
 object RichHadoopPath {
-  /**
-   * Technically wrapPathStub should never be used anywhere but here.
-   * Omitting this gives a compile-time error: No implicit view available from Path => FileLike[Path]
-   *
-   * TODO: Should we use null instead of new Configuration() ?
-   */
-  implicit def wrapPathStub(path: Path) = new RichHadoopPath(path, new Configuration())
 
   implicit def wrapPath(path: Path)(implicit hadoopConf: Configuration) = new RichHadoopPath(path, hadoopConf)
 
