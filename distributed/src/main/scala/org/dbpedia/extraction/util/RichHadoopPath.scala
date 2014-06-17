@@ -45,8 +45,6 @@ class RichHadoopPath(path: Path, conf: Configuration) extends FileLike[Path] {
       throw new IOException("failed to delete path ["+path+"]")
   }
 
-  def deleteConfirm(recursive: Boolean = false): Boolean = fs.delete(path, recursive)
-
   override def resolve(name: String): Path = new Path(path, name)
 
   override def exists: Boolean = fs.exists(path)

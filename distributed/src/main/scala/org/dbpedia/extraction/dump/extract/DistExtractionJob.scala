@@ -38,8 +38,7 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
     // Map the RDD[WikiPage] into the resulting RDD.
     val results: RDD[Seq[Quad]] = rdd.map(mapper)
 
-    // Iterate locally and write into destination Since the destination is wrapped in DistMarkerDestination,
-    // the output can be any file system, including local FS and HDFS.
+    // Iterate locally and write into destination (local FS, HDFS etc. according to Hadoop's Configuration).
     // TODO: Need a better method for writing into destination. This one currently streams all results to the master while writing to the destination.
     // TODO: Solution: Write a Hadoop OutputFormat which Spark can use to write outputs in parallel.
     val iter = SparkUtils.rddToLocalIterator(results)

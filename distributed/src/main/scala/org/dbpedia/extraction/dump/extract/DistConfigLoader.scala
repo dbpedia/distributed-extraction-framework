@@ -193,7 +193,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
       formatDestinations += new DatasetDestination(datasetDestinations)
     }
 
-    val destination = new DistMarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false, hadoopConfiguration)
+    val destination = new MarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
     new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
