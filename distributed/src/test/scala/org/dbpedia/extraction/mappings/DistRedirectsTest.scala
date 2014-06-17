@@ -37,13 +37,15 @@ class DistRedirectsTest extends FunSuite
     assertNotNull("Test file %s missing from distributed/src/test/resources".format(CONFIG_FILE), configFileResource)
     assertNotNull("Test file %s missing from distributed/src/test/resources".format(SPARK_CONFIG_FILE), sparkConfigFileResource)
 
-    val config = new Config(ConfigUtils.loadConfig(configFileResource.toURI.getPath, "UTF-8"))
-    val distConfig = new DistConfig(ConfigUtils.loadConfig(sparkConfigFileResource.toURI.getPath, "UTF-8"))
+    val configProperties = ConfigUtils.loadConfig(configFileResource.toURI.getPath, "UTF-8")
+    val distConfigProperties = ConfigUtils.loadConfig(sparkConfigFileResource.toURI.getPath, "UTF-8")
+    val config = new Config(configProperties)
+    val distConfig = new DistConfig(distConfigProperties, configProperties)
     implicit val hadoopConfiguration = distConfig.hadoopConf
     val lang = config.extractorClasses.iterator.next()._1
 
     val localFinder = new Finder[File](config.dumpDir, lang, config.wikiName)
-    val distFinder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
+    val distFinder = new Finder[Path](distConfig.dumpDir.get, lang, config.wikiName)
     val date = latestDate(config, localFinder)
 
     // Get the readers for the test dump files
