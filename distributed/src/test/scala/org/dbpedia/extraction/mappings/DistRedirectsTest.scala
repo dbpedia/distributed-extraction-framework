@@ -43,7 +43,8 @@ class DistRedirectsTest extends FunSuite
     val lang = config.extractorClasses.iterator.next()._1
 
     val localFinder = new Finder[File](config.dumpDir, lang, config.wikiName)
-    val distFinder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
+    val distDumpDir = distConfig.dumpDir.getOrElse(new Path(config.dumpDir.getAbsolutePath))
+    val distFinder = new Finder[Path](distDumpDir, lang, config.wikiName)
     val date = latestDate(config, localFinder)
 
     // Get the readers for the test dump files
