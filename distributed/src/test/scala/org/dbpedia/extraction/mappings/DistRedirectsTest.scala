@@ -1,6 +1,5 @@
 package org.dbpedia.extraction.mappings
 
-import org.junit.Test
 import org.junit.Assert._
 import org.dbpedia.extraction.sources.{Source, XMLSource, WikiPage}
 import org.apache.spark.rdd.RDD
@@ -10,11 +9,12 @@ import org.dbpedia.extraction.wikiparser.Namespace
 import org.dbpedia.extraction.dump.extract.{Config, DistConfig}
 import org.dbpedia.extraction.dump.download.Download
 import org.dbpedia.extraction.util.RichFile.wrapFile
-import org.apache.spark.SparkContext
 import org.scalatest.FunSuite
 import org.scalatest.junit.JUnitRunner
 import org.junit.runner.RunWith
-import org.apache.log4j.{Logger, Level}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 
 @RunWith(classOf[JUnitRunner])
 class DistRedirectsTest extends FunSuite
@@ -23,12 +23,12 @@ class DistRedirectsTest extends FunSuite
   val SPARK_CONFIG_FILE = "spark-config.properties"
 
   // Fixtures shared between all tests in this class
-  val (articleSource: Source,
+  val (distConfig: DistConfig,
+  articleSource: Source,
   rdd: RDD[WikiPage],
   language: Language,
   date: String,
-  finder: Finder[File],
-  sparkContext: SparkContext) =
+  distFinder: Finder[Path]) =
   {
     val configFileResource = getClass.getClassLoader.getResource(CONFIG_FILE)
     val sparkConfigFileResource = getClass.getClassLoader.getResource(SPARK_CONFIG_FILE)
@@ -39,13 +39,15 @@ class DistRedirectsTest extends FunSuite
 
     val config = new Config(ConfigUtils.loadConfig(configFileResource.toURI.getPath, "UTF-8"))
     val distConfig = new DistConfig(ConfigUtils.loadConfig(sparkConfigFileResource.toURI.getPath, "UTF-8"))
+    implicit val hadoopConfiguration = distConfig.hadoopConf
     val lang = config.extractorClasses.iterator.next()._1
 
-    val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
-    val date = latestDate(config, finder)
+    val localFinder = new Finder[File](config.dumpDir, lang, config.wikiName)
+    val distFinder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
+    val date = latestDate(config, localFinder)
 
     // Get the readers for the test dump files
-    val articlesReaders = files(config.source, finder, date).map(x => () => IOUtils.reader(x))
+    val articlesReaders = files(config.source, localFinder, date).map(x => () => IOUtils.reader(x))
 
     // Get the article source for Redirects to load from
     val articleSource = XMLSource.fromReaders(articlesReaders, lang,
@@ -57,8 +59,10 @@ class DistRedirectsTest extends FunSuite
     // Generate RDD from the article source for DistRedirects to load from in parallel
     // Naively calls toArray on Seq, only for testing
     val rdd = sc.parallelize(articleSource.toSeq)
-    (articleSource, rdd, lang, date, finder, sc)
+    (distConfig, articleSource, rdd, lang, date, distFinder)
   }
+
+  implicit def hadoopConfiguration: Configuration = distConfig.hadoopConf
 
   test("Verify DistRedirects.loadFromRDD output")
   {
@@ -69,7 +73,7 @@ class DistRedirectsTest extends FunSuite
 
   test("Verify DistRedirects.load output")
   {
-    val cache = finder.file(date, "template-redirects.obj")
+    val cache = distFinder.file(date, "template-redirects.obj")
     var distRedirects = DistRedirects.load(rdd, cache, language)
     var redirects = Redirects.loadFromSource(articleSource, language)
     assertEquals("Testing DistRedirects.loadFromRDD failed!", redirects.map, distRedirects.map)

@@ -11,7 +11,7 @@ import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 import org.dbpedia.extraction.util.SparkUtils
 
 /**
- * Executes a extraction using Spark.
+ * Executes an extraction using Spark.
  *
  * @param extractor The Extractor
  * @param rdd The RDD of WikiPages
@@ -32,8 +32,15 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
     progress.start()
     destination.open()
 
-    val results: RDD[Seq[Quad]] = rdd.map(DistExtractionJob.mapper(extractor, namespaces))
+    // Wrap the ExtractorMapper to make the closure Kryo-serialized.
+    val mapper = SparkUtils.kryoWrapFunction(new ExtractorMapper(extractor, namespaces))
 
+    // Map the RDD[WikiPage] into the resulting RDD.
+    val results: RDD[Seq[Quad]] = rdd.map(mapper)
+
+    // Iterate locally and write into destination (local FS, HDFS etc. according to Hadoop's Configuration).
+    // TODO: Need a better method for writing into destination. This one currently streams all results to the master while writing to the destination.
+    // TODO: Solution: Write a Hadoop OutputFormat which Spark can use to write outputs in parallel.
     val iter = SparkUtils.rddToLocalIterator(results)
     while (iter.hasNext)
     {
@@ -48,21 +55,14 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
   }
 }
 
-object DistExtractionJob
-{
-  def genMapper[T, U](kryoWrapper: KryoSerializationWrapper[(T => U)])
-                     (page: T): U =
-  {
-    kryoWrapper.value.apply(page)
-  }
 
-  def mapper(extractor: RootExtractor, namespaces: Set[Namespace]) =
-  {
-    genMapper[WikiPage, Seq[Quad]](KryoSerializationWrapper(new ExtractorMapper(extractor, namespaces))) _
-  }
-}
-
-
+/**
+ * This is the actual mapper that takes a WikiPage, performs the extraction with the set of extractors
+ * and returns the results as a Seq[Quad]. This is similar to what happens in ExtractionJob.
+ *
+ * @param extractor
+ * @param namespaces
+ */
 class ExtractorMapper(val extractor: RootExtractor, val namespaces: Set[Namespace]) extends (WikiPage => Seq[Quad])
 {
 
