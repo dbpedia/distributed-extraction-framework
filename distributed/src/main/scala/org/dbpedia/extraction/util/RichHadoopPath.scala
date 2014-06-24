@@ -5,7 +5,6 @@ import scala.language.implicitConversions
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 import java.nio.file.NotDirectoryException
-import RichHadoopPath._
 
 object RichHadoopPath {
 
@@ -59,7 +58,11 @@ class RichHadoopPath(path: Path, conf: Configuration) extends FileLike[Path] {
   override def list: List[Path] = list("*")
 
   // TODO: more efficient type than List?
-  def list(glob: String): List[Path] = fs.globStatus(new Path(path, glob)).map(_.getPath).toList
+  def list(glob: String): List[Path] = {
+    val list = fs.globStatus(new Path(path, glob)).map(_.getPath).toList
+    if(list.isEmpty) throw new IOException("failed to list files in ["+path+"]")
+    list
+  }
 
   override def size: Long = fs.getContentSummary(path).getLength
 

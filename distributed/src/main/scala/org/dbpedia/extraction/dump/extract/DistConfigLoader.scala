@@ -6,7 +6,6 @@ import org.dbpedia.extraction.ontology.io.OntologyReader
 import org.dbpedia.extraction.sources.{Source, WikiPage, XMLSource, WikiSource}
 import org.dbpedia.extraction.util._
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
-import org.dbpedia.extraction.util.RichFile.wrapFile
 import org.dbpedia.extraction.wikiparser.Namespace
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import java.io._
@@ -21,6 +20,7 @@ import org.dbpedia.extraction.spark.io.XmlInputFormat
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.fs.Path
+import org.apache.spark.SparkContext
 
 /**
  * Loads the dump extraction configuration.
@@ -30,10 +30,9 @@ import org.apache.hadoop.fs.Path
  * TODO: get rid of all config file parsers, use Spring
  * TODO: Inherit ConfigLoader methods and get rid of redundant code
  *
- * @param config General extraction framework configuration
- * @param distConfig Distributed configuration
+ * @param config DistConfig
  */
-class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoader(config)
+class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 {
   private val logger = Logger.getLogger(classOf[DistConfigLoader].getName)
 
@@ -42,7 +41,7 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
    *
    * @return Non-strict Traversable over all configured extraction jobs i.e. an extractions job will not be created until it is explicitly requested.
    */
-  override def getExtractionJobs(): Traversable[DistExtractionJob] =
+  def getExtractionJobs(): Traversable[DistExtractionJob] =
   {
     // Create a non-strict view of the extraction jobs
     // non-strict because we want to create the extraction job when it is needed, not earlier
@@ -50,17 +49,16 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   }
 
   /**
-   * Creates ab extraction job for a specific language.
+   * Creates an extraction job for a specific language.
    */
   private def createExtractionJob(lang: Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]): DistExtractionJob =
   {
+    val dumpDir = config.dumpDir.get
+
     // Finder[Path] works with Hadoop's FileSystem class - operates on HDFS, or the local file system depending
     // upon whether we are running in local mode or distributed/cluster mode.
-    val finder = new Finder[Path](distConfig.dumpDir, lang, config.wikiName)
+    val finder = new Finder[Path](dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
-
-    SparkUtils.silenceSpark()
-    val sparkContext = SparkUtils.getSparkContext(distConfig)
 
     // Getting the WikiPages from local on-disk cache saves processing time.
     val cache = finder.file(date, "articles-rdd")
@@ -128,16 +126,16 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
       {
         val namespace = Namespace.mappings(language)
 
-        if (config.mappingsDir != null && config.mappingsDir.isDirectory)
+        config.mappingsDir match
         {
-          val file = new File(config.mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
-          XMLSource.fromFile(file, Language.Mappings)
-        }
-        else
-        {
-          val namespaces = Set(namespace)
-          val url = new URL(Language.Mappings.apiUri)
-          WikiSource.fromNamespaces(namespaces, url, Language.Mappings)
+          case Some(mappingsDir) if mappingsDir.isDirectory =>
+            // Is mappingsDir defined and it is indeed a directory?
+            val path = new Path(mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
+            XMLSource.fromReader(reader(path), Language.Mappings)
+          case _ =>
+            val namespaces = Set(namespace)
+            val url = new URL(Language.Mappings.apiUri)
+            WikiSource.fromNamespaces(namespaces, url, Language.Mappings)
         }
       }
 
@@ -199,21 +197,21 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
     new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
-  implicit def hadoopConfiguration: Configuration = distConfig.hadoopConf
+  implicit def hadoopConfiguration: Configuration = config.hadoopConf
 
   //language-independent val
   private val _ontology =
   {
-    val ontologySource = if (config.ontologyFile != null && config.ontologyFile.isFile)
+    val ontologySource = config.ontologyFile match
     {
-      XMLSource.fromFile(config.ontologyFile, Language.Mappings)
-    }
-    else
-    {
-      val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
-      val url = new URL(Language.Mappings.apiUri)
-      val language = Language.Mappings
-      WikiSource.fromNamespaces(namespaces, url, language)
+      case Some(ontologyFile) if ontologyFile.isFile =>
+        // Is ontologyFile defined and it is indeed a file?
+        XMLSource.fromReader(reader(ontologyFile), Language.Mappings)
+      case _ =>
+        val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
+        val url = new URL(Language.Mappings.apiUri)
+        val language = Language.Mappings
+        WikiSource.fromNamespaces(namespaces, url, language)
     }
 
     new OntologyReader().read(ontologySource)
@@ -224,14 +222,14 @@ class DistConfigLoader(config: Config, distConfig: DistConfig) extends ConfigLoa
   {
     try
     {
-      val finder = new Finder[File](config.dumpDir, Language("commons"), config.wikiName)
+      val finder = new Finder[Path](config.dumpDir.get, Language("commons"), config.wikiName)
       val date = latestDate(finder)
       XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
     }
     catch
       {
         case ex: Exception =>
-          logger.info("Could not load disambiguations - error: " + ex.getMessage)
+          logger.info("Could not load commons source - error: " + ex.getMessage)
           null
       }
   }
