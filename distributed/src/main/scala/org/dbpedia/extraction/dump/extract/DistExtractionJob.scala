@@ -5,10 +5,9 @@ import org.dbpedia.extraction.destinations.{Quad, Destination}
 import org.dbpedia.extraction.mappings.RootExtractor
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.Namespace
-import org.dbpedia.util.Exceptions
 import org.apache.spark.rdd.RDD
-import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 import org.dbpedia.extraction.util.SparkUtils
+import org.dbpedia.util.Exceptions
 
 /**
  * Executes an extraction using Spark.
@@ -20,14 +19,12 @@ import org.dbpedia.extraction.util.SparkUtils
  * @param label user readable label of this extraction job.
  */
 class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], val namespaces: Set[Namespace], destination: Destination, label: String, description: String)
-  extends ExtractionJob(extractor, null, namespaces, destination, label, description)
-// Inheriting to make this work with DistConfigLoader extends ConfigLoader
 {
   val logger = Logger.getLogger(getClass.getName)
 
   val progress = new ExtractionProgress(label, description)
 
-  override def run(): Unit =
+  def run(): Unit =
   {
     progress.start()
     destination.open()
@@ -50,8 +47,6 @@ class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], va
 
     destination.close()
     progress.end()
-    
-    rdd.sparkContext.stop()
   }
 }
 
