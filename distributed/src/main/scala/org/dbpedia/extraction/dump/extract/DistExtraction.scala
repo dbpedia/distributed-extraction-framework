@@ -1,8 +1,10 @@
 package org.dbpedia.extraction.dump.extract
 
-import org.dbpedia.extraction.util.ProxyAuthenticator
+import org.dbpedia.extraction.util.{SparkUtils, ProxyAuthenticator, ConfigUtils}
 import java.net.Authenticator
-import org.dbpedia.extraction.util.ConfigUtils
+import scala.concurrent.{Await, Future, future}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.Duration
 
 /**
  * Dump extraction script.
@@ -20,16 +22,29 @@ object DistExtraction
     Authenticator.setDefault(new ProxyAuthenticator())
 
     // Load properties
-    val config = ConfigUtils.loadConfig(args(0), "UTF-8")
-    val sparkConfig = ConfigUtils.loadConfig(args(1), "UTF-8")
+    val extractionConfigProps = ConfigUtils.loadConfig(args(0), "UTF-8")
+    val distConfigProps = ConfigUtils.loadConfig(args(1), "UTF-8")
+    val distConfig = new DistConfig(distConfigProps, extractionConfigProps)
 
     // overwrite properties with CLI args
     // TODO arguments could be of the format a=b and then property a can be overwritten with "b"
 
-    //Load extraction jobs from configuration
-    val jobs = new DistConfigLoader(new Config(config), new DistConfig(sparkConfig)).getExtractionJobs()
+    // Create SparkContext
+    SparkUtils.silenceSpark()
+    val sparkContext = SparkUtils.getSparkContext(distConfig)
 
-    //Execute the extraction jobs one by one
-    for (job <- jobs) job.run()
+    // Load extraction jobs from configuration
+    val jobs = new DistConfigLoader(distConfig, sparkContext).getExtractionJobs()
+
+    // Execute the extraction jobs in parallel using the default ExecutionContext
+    // TODO: Equip the framework with an OutputFormat or something so that DistExtractionJob can write output using Hadoop's API, in a distributed manner.
+    // TODO: Probably use a custom ExecutionContext and a non-blocking approach so that number of simultaneous jobs is NOT limited by driver/master node's CPU/threads.
+    val futures = for (job <- jobs) yield future
+                                          {
+                                            job.run()
+                                          }
+    Await.result(Future.sequence(futures), Duration.Inf)
+
+    sparkContext.stop()
   }
 }
