@@ -32,7 +32,7 @@ import org.apache.spark.SparkContext
  *
  * @param config DistConfig
  */
-class DistConfigLoader(config: DistConfig)
+class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 {
   private val logger = Logger.getLogger(classOf[DistConfigLoader].getName)
 
@@ -59,9 +59,6 @@ class DistConfigLoader(config: DistConfig)
     // upon whether we are running in local mode or distributed/cluster mode.
     val finder = new Finder[Path](dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
-
-    SparkUtils.silenceSpark()
-    val sparkContext = SparkUtils.getSparkContext(distConfig)
 
     // Getting the WikiPages from local on-disk cache saves processing time.
     val cache = finder.file(date, "articles-rdd")
