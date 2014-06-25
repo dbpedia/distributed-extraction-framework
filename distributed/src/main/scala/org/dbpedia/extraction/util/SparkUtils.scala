@@ -74,7 +74,7 @@ object SparkUtils
       //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
       conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
-      conf.set("spark.kryoserializer.buffer.mb", "50")
+      conf.set("spark.kryoserializer.buffer.mb", "100")
       sc = new SparkContext(conf)
     }
     sc
