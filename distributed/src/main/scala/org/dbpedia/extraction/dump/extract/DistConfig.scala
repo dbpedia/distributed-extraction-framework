@@ -58,9 +58,6 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
     if (hadoopMapredConf != null)
       hadoopConf.addResource(new Path(hadoopMapredConf))
 
-    hadoopConf.set("xmlinput.start", "<page>")
-    hadoopConf.set("xmlinput.end", "</page>")
-
     hadoopConf
   }
 
