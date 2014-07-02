@@ -65,9 +65,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     {
       logger.info("Loading articles from cache file " + cache)
       val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache)
-      // count() throws org.apache.hadoop.mapred.InvalidInputException if file doesn't exist
-      val count = loaded.count()
-      logger.info(count + " WikiPages loaded from cache file " + cache)
+      logger.info("WikiPages loaded from cache file " + cache)
       loaded
     }
     catch
