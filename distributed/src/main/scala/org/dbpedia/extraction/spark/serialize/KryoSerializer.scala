@@ -4,6 +4,7 @@ import java.nio.ByteBuffer
 
 import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.serializer.{KryoSerializer => SparkKryoSerializer}
+import scala.reflect.ClassTag
 
 
 /**
@@ -20,12 +21,12 @@ object KryoSerializer
     new SparkKryoSerializer(sparkConf)
   }
 
-  def serialize[T](o: T): Array[Byte] =
+  def serialize[T: ClassTag](o: T): Array[Byte] =
   {
     ser.newInstance().serialize(o).array()
   }
 
-  def deserialize[T](bytes: Array[Byte]): T =
+  def deserialize[T: ClassTag](bytes: Array[Byte]): T =
   {
     ser.newInstance().deserialize[T](ByteBuffer.wrap(bytes))
   }

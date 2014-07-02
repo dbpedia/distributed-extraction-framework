@@ -68,7 +68,7 @@ class RichHadoopPath(path: Path, conf: Configuration) extends FileLike[Path] {
 
   override def isFile: Boolean = fs.isFile(path)
 
-  override def isDirectory: Boolean = fs.getFileStatus(path).isDir
+  override def isDirectory: Boolean = fs.getFileStatus(path).isDirectory
 
   override def inputStream(): InputStream = fs.open(path)
 
