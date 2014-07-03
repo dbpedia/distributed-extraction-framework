@@ -31,7 +31,7 @@ class WikiPageWritable(wikiPage: WikiPage) extends Writable
     val out = new ByteArrayOutputStream()
     val o = new Output(out, 10)
     wps.write(DistIOUtils.getKryoInstance, o, _wikiPage)
-    o.flush()
+    o.close()
     val bytes = out.toByteArray
     output.writeInt(bytes.size)
     output.write(bytes)
