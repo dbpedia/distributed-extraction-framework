@@ -1,4 +1,4 @@
-package org.dbpedia.extraction.spark.io
+package org.dbpedia.extraction.spark.io.input
 
 import org.apache.hadoop.io.{DataOutputBuffer, LongWritable}
 import org.apache.hadoop.io.compress.{CompressionCodecFactory, SplittableCompressionCodec}
@@ -9,6 +9,7 @@ import org.apache.hadoop.mapreduce.lib.input.{FileSplit, FileInputFormat}
 import org.apache.hadoop.mapreduce.{JobContext, RecordReader, InputSplit, TaskAttemptContext}
 import org.apache.commons.logging.LogFactory
 import org.dbpedia.extraction.util.Language
+import org.dbpedia.extraction.spark.io.WikiPageWritable
 
 /**
  * Hadoop InputFormat that splits a Wikipedia dump file into WikiPageWritable (representing a single

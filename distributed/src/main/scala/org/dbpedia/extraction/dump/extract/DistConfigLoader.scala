@@ -15,11 +15,12 @@ import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.dump.download.Download
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.LongWritable
-import org.dbpedia.extraction.spark.io.{WikiPageWritable, DBpediaWikiPageInputFormat}
+import org.dbpedia.extraction.spark.io.WikiPageWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
+import org.dbpedia.extraction.spark.io.input.DBpediaWikiPageInputFormat
 
 /**
  * Loads the dump extraction configuration.

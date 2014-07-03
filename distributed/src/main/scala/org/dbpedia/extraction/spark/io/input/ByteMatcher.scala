@@ -1,4 +1,4 @@
-package org.dbpedia.extraction.spark.io
+package org.dbpedia.extraction.spark.io.input
 
 import java.io.InputStream
 import org.apache.hadoop.fs.Seekable

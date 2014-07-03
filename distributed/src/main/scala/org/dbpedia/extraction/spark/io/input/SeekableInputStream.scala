@@ -1,4 +1,4 @@
-package org.dbpedia.extraction.spark.io
+package org.dbpedia.extraction.spark.io.input
 
 import org.apache.hadoop.io.compress._
 import org.apache.hadoop.fs.{FileSystem, Seekable, FSDataInputStream}
