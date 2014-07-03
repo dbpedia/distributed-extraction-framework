@@ -13,16 +13,16 @@ import org.dbpedia.extraction.util.DistIOUtils
  */
 class WikiPageWritable(wikiPage: WikiPage) extends Writable
 {
-  var wikiPage_ = wikiPage
+  var _wikiPage = wikiPage
 
   def this() = this(null)
 
   def set(wikiPage: WikiPage)
   {
-    wikiPage_ = wikiPage
+    _wikiPage = wikiPage
   }
 
-  def get = wikiPage_
+  def get = _wikiPage
 
   val wps = new WikiPageSerializer
 
@@ -30,7 +30,7 @@ class WikiPageWritable(wikiPage: WikiPage) extends Writable
   {
     val out = new ByteArrayOutputStream()
     val o = new Output(out, 10)
-    wps.write(DistIOUtils.getNewKryo(), o, wikiPage)
+    wps.write(DistIOUtils.getKryoInstance, o, _wikiPage)
     o.flush()
     val bytes = out.toByteArray
     output.writeInt(bytes.size)
@@ -44,6 +44,6 @@ class WikiPageWritable(wikiPage: WikiPage) extends Writable
     input.readFully(bytes)
     val i = new Input()
     i.setBuffer(bytes)
-    wikiPage = wps.read(DistIOUtils.getNewKryo(), i, classOf[WikiPage])
+    _wikiPage = wps.read(DistIOUtils.getKryoInstance, i, classOf[WikiPage])
   }
 }
