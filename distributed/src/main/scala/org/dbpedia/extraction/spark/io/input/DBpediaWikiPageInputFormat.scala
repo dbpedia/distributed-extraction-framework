@@ -87,7 +87,7 @@ class DBpediaWikiPageInputFormat extends FileInputFormat[LongWritable, WikiPageW
       {
         try
         {
-          page.write(pageBeginPattern.getBytes("UTF-8"))
+          page.write(pageBeginPattern)
           if (matcher.readUntilMatch(pageEndPattern, end, Some(page)))
           {
             // Key is set to the position (bytes) where the page is found
