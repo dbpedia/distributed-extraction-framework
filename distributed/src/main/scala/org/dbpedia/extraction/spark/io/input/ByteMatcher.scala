@@ -49,10 +49,22 @@ class ByteMatcher(in: InputStream, seeker: Seekable)
    *
    * @param textPattern String to match against
    * @param end number of bytes to read till - checked against seeker
-   * @param outputBuffer DataOutputBuffer, if provided, accumulates the data being read
    * @return Boolean true if a match was found, false if EOF was found or stopping point "end" was crossed.
    */
-  def readUntilMatch(textPattern: String, end: Long, outputBuffer: Option[DataOutputBuffer] = None): Boolean =
+  def readUntilMatch(textPattern: String, end: Long): Boolean =
+  {
+    readUntilMatch(textPattern.getBytes("UTF-8"), 0, end)
+  }
+
+  /**
+   * Reads the InputStream while writing to a buffer, until a match is found or "end" number of bytes is reached.
+   *
+   * @param textPattern String to match against
+   * @param end number of bytes to read till - checked against seeker
+   * @param outputBuffer DataOutputBuffer where the data being read is written to
+   * @return Boolean true if a match was found, false if EOF was found or stopping point "end" was crossed.
+   */
+  def readUntilMatch(textPattern: String, end: Long, outputBuffer: Option[DataOutputBuffer]): Boolean =
   {
     readUntilMatch(textPattern.getBytes("UTF-8"), 0, end, outputBuffer)
   }
@@ -62,15 +74,27 @@ class ByteMatcher(in: InputStream, seeker: Seekable)
    *
    * @param bytePattern Byte array to match against
    * @param end number of bytes to read till - checked against seeker
-   * @param outputBuffer DataOutputBuffer, if provided, accumulates the data being read
    * @return Boolean true if a match was found, false if EOF was found or stopping point "end" was crossed.
    */
-  def readUntilMatch(bytePattern: Array[Byte], end: Long, outputBuffer: Option[DataOutputBuffer] = None): Boolean =
+  def readUntilMatch(bytePattern: Array[Byte], end: Long): Boolean =
+  {
+    readUntilMatch(bytePattern, 0, end)
+  }
+
+  /**
+   * Reads the InputStream while writing to a buffer, until a match is found or "end" number of bytes is reached.
+   *
+   * @param bytePattern Byte array to match against
+   * @param end number of bytes to read till - checked against seeker
+   * @param outputBuffer DataOutputBuffer where the data being read is written to
+   * @return Boolean true if a match was found, false if EOF was found or stopping point "end" was crossed.
+   */
+  def readUntilMatch(bytePattern: Array[Byte], end: Long, outputBuffer: Option[DataOutputBuffer]): Boolean =
   {
     readUntilMatch(bytePattern, 0, end, outputBuffer)
   }
 
-  @tailrec private def readUntilMatch(matchBytes: Array[Byte], matchIter: Int, end: Long, outputBuffer: Option[DataOutputBuffer]): Boolean =
+  @tailrec private def readUntilMatch(matchBytes: Array[Byte], matchIter: Int, end: Long, outputBuffer: Option[DataOutputBuffer] = None): Boolean =
   {
     var i = matchIter
     val b: Int = this.in.read
