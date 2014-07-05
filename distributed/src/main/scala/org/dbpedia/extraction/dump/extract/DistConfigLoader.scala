@@ -81,7 +81,10 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
             FileInputFormat.addInputPath(job, file)
 
           val updatedConf = job.getConfiguration
+          SparkUtils.storeObjectToConfiguration("dbpedia.config.properties", config.extractionConfigProps, updatedConf)
+          updatedConf.set("dbpedia.wiki.name", config.wikiName)
           updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
+          updatedConf.set("dbpedia.wiki.date", date)
 
           // Create RDD with WikiPageWritable elements.
           val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =

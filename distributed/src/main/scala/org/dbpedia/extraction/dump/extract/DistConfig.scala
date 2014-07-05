@@ -18,7 +18,7 @@ import java.io.File
  * @param extractionConfigProps General extraction framework configuration properties
  * @see Config
  */
-class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
+class DistConfig(val distConfigProps: Properties, val extractionConfigProps: Properties)
 {
   private val extractionConfig = new ExtractionConfig()
 
