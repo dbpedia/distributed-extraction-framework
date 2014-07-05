@@ -18,7 +18,7 @@ import java.io.File
  * @param extractionConfigProps General extraction framework configuration properties
  * @see Config
  */
-class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
+class DistConfig(val distConfigProps: Properties, val extractionConfigProps: Properties)
 {
   private val extractionConfig = new ExtractionConfig()
 
@@ -57,9 +57,6 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
       hadoopConf.addResource(new Path(hadoopHdfsConf))
     if (hadoopMapredConf != null)
       hadoopConf.addResource(new Path(hadoopMapredConf))
-
-    hadoopConf.set("xmlinput.start", "<page>")
-    hadoopConf.set("xmlinput.end", "</page>")
 
     hadoopConf
   }

@@ -4,10 +4,11 @@ import org.apache.spark.{SparkContext, SparkConf}
 import org.dbpedia.extraction.dump.extract.DistConfig
 import org.apache.log4j.{Logger, Level}
 import java.nio.file.{Paths, Files}
-import java.io.FileNotFoundException
+import java.io._
 import scala.reflect.ClassTag
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
+import org.apache.hadoop.conf.Configuration
 
 /**
  * Utility functions specific to Spark
@@ -111,5 +112,34 @@ object SparkUtils
     }
 
     genMapper(KryoSerializationWrapper(function)) _
+  }
+
+  /**
+   * Serialize an object to string and store it into Hadoop's Configuration object.
+   *
+   * @param key String key to store against in conf
+   * @param obj Object to serialize
+   * @param conf Configuration
+   */
+  def storeObjectToConfiguration(key: String, obj: AnyRef, conf: Configuration)
+  {
+    val bos = new ByteArrayOutputStream()
+    val os = new ObjectOutputStream(bos)
+    os.writeObject(obj)
+    os.close()
+    conf.set(key, bos.toString("UTF-8"))
+  }
+
+  /**
+   * Deserialize an object stored as a serialized string in Hadoop's Configuration object.
+   *
+   * @param key String key to retrieve from
+   * @param conf Configuration
+   * @return deserialized object
+   */
+  def getObjectFromConfiguration(key: String, conf: Configuration): AnyRef =
+  {
+    val serialized = conf.get(key)
+    new ObjectInputStream(new ByteArrayInputStream(serialized.getBytes("UTF-8"))).readObject()
   }
 }

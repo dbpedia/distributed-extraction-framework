@@ -14,13 +14,13 @@ import java.util.logging.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.dump.download.Download
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.{Text, LongWritable}
-import scala.xml.XML
-import org.dbpedia.extraction.spark.io.XmlInputFormat
+import org.apache.hadoop.io.LongWritable
+import org.dbpedia.extraction.spark.io.WikiPageWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
+import org.dbpedia.extraction.spark.io.input.DBpediaWikiPageInputFormat
 
 /**
  * Loads the dump extraction configuration.
@@ -66,9 +66,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     {
       logger.info("Loading articles from cache file " + cache)
       val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache)
-      // count() throws org.apache.hadoop.mapred.InvalidInputException if file doesn't exist
-      val count = loaded.count()
-      logger.info(count + " WikiPages loaded from cache file " + cache)
+      logger.info("WikiPages loaded from cache file " + cache)
       loaded
     }
     catch
@@ -78,29 +76,31 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
           logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
 
           // Add input sources
-          val job = new Job(hadoopConfiguration)
+          val job = Job.getInstance(hadoopConfiguration)
           for (file <- files(config.source, finder, date))
             FileInputFormat.addInputPath(job, file)
 
           val updatedConf = job.getConfiguration
+          SparkUtils.storeObjectToConfiguration("dbpedia.config.properties", config.extractionConfigProps, updatedConf)
+          updatedConf.set("dbpedia.wiki.name", config.wikiName)
+          updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
+          updatedConf.set("dbpedia.wiki.date", date)
 
-          // Create RDD with <page>...</page> elements.
-          val rawArticlesRDD: RDD[(LongWritable, Text)] =
-            sparkContext.newAPIHadoopRDD(updatedConf, classOf[XmlInputFormat], classOf[LongWritable], classOf[Text])
+          // Create RDD with WikiPageWritable elements.
+          val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
+            sparkContext.newAPIHadoopRDD(updatedConf, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
 
-          // Function to parse a <page>...</page> string into a WikiPage.
-          val wikiPageParser: (((LongWritable, Text)) => WikiPage) =
-            keyValue => XMLSource.fromXML(XML.loadString("<mediawiki>" + keyValue._2.toString + "</mediawiki>"), lang).toSeq.head
-          val mapper = SparkUtils.kryoWrapFunction(wikiPageParser)
-
-          val newRdd = rawArticlesRDD.map(mapper).filter
+          // Unwrap WikiPages and filter unnecessary pages
+          val newRdd = rawArticlesRDD.flatMap
                        {
-                         page =>
-                           page.title.namespace == Namespace.Main ||
+                         keyValue =>
+                           val page = keyValue._2.get
+                           if (page.title.namespace == Namespace.Main ||
                              page.title.namespace == Namespace.File ||
                              page.title.namespace == Namespace.Category ||
-                             page.title.namespace == Namespace.Template
-                       }.cache()
+                             page.title.namespace == Namespace.Template) Seq(page)
+                           else Nil
+                       }
 
           DistIOUtils.saveRDD(newRdd, cache)
           logger.info("Parsed WikiPages written to cache file " + cache)
