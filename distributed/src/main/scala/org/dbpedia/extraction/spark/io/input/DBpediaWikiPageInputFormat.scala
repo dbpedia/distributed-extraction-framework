@@ -22,6 +22,7 @@ import org.dbpedia.extraction.spark.io.WikiPageWritable
 class DBpediaWikiPageInputFormat extends FileInputFormat[LongWritable, WikiPageWritable]
 {
   private val LOG = LogFactory.getLog(classOf[DBpediaWikiPageInputFormat])
+  private val LANGUAGE = "dbpedia.wiki.language.wikicode"
 
   protected override def isSplitable(context: JobContext, file: Path): Boolean =
   {
@@ -45,7 +46,7 @@ class DBpediaWikiPageInputFormat extends FileInputFormat[LongWritable, WikiPageW
     private val conf = context.getConfiguration
 
     // Language code for this data dump
-    private val language = Language(conf.get("dbpedia.wiki.language.wikicode"))
+    private val language = Language(conf.get(LANGUAGE))
     private val page = new DataOutputBuffer()
     private val inputStream = SeekableInputStream(split,
                                                   split.getPath.getFileSystem(conf),
