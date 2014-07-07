@@ -97,7 +97,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
                              page.title.namespace == Namespace.File ||
                              page.title.namespace == Namespace.Category ||
                              page.title.namespace == Namespace.Template
-                       }.cache()
+                       }.persist(config.sparkStorageLevel)
 
           if (config.cacheWikiPageRDD)
           {

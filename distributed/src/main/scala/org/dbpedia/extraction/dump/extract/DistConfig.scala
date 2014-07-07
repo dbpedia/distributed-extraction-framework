@@ -7,6 +7,7 @@ import org.apache.hadoop.fs.Path
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.conf.Configuration
 import java.io.File
+import org.apache.spark.storage.StorageLevel
 
 /**
  * Class for distributed configuration. Delegates general stuff except directory/file properties to Config.
@@ -34,8 +35,28 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
   /** Shows up on Spark Web UI */
   val sparkAppName = distConfigProps.getProperty("spark-appname", "dbpedia-distributed-extraction-framework")
 
+  /**
+   * The StorageLevel to be used when calling RDD.persist() unless otherwise specified. Choose any of these:
+   * MEMORY_ONLY
+   * MEMORY_AND_DISK
+   * MEMORY_ONLY_SER
+   * MEMORY_AND_DISK_SER
+   * DISK_ONLY
+   * MEMORY_ONLY_2, MEMORY_AND_DISK_2 etc.
+   *
+   * By default it is set to MEMORY_AND_DISK_SER
+   *
+   * @see org.apache.spark.storage.StorageLevel
+   */
+  val sparkStorageLevel = Option(
+                                  getValue(distConfigProps, "spark-storage-level", required = false)
+                                  {
+                                    level => StorageLevel.getClass.getDeclaredMethod(level).invoke(StorageLevel).asInstanceOf[StorageLevel]
+                                  }
+                                ).getOrElse(StorageLevel.MEMORY_AND_DISK_SER)
+
   /** Map of optional spark configuration properties. See http://spark.apache.org/docs/latest/configuration.html */
-  val sparkProperties = distConfigProps.stringPropertyNames().filter(_.startsWith("spark")).map(x => (x, distConfigProps.getProperty(x))).toMap
+  val sparkProperties = distConfigProps.stringPropertyNames().filter(_.startsWith("spark.")).map(x => (x, distConfigProps.getProperty(x))).toMap
 
   /** Path to hadoop core-site.xml */
   private val hadoopCoreConf = distConfigProps.getProperty("hadoop-coresite-xml-path")
@@ -147,4 +168,5 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
     override val ontologyFile: File = null
     override val mappingsDir: File = null
   }
+
 }
