@@ -4,7 +4,7 @@ import java.util.logging.{Level, Logger}
 import org.dbpedia.extraction.sources.WikiPage
 import java.io._
 import org.dbpedia.extraction.wikiparser._
-import org.dbpedia.extraction.util.{DistIOUtils, Language}
+import org.dbpedia.extraction.util.{SparkUtils, DistIOUtils, Language}
 import org.dbpedia.extraction.wikiparser.impl.wikipedia.Redirect
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
@@ -13,6 +13,7 @@ import com.esotericsoftware.kryo.io.{Input, Output}
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.conf.Configuration
+import org.apache.spark.broadcast.Broadcast
 
 /**
  * Distributed version of Redirects; uses Spark to compute redirects.
@@ -106,29 +107,23 @@ object DistRedirects
   {
     logger.info("Loading redirects from source (" + lang.wikiCode + ")")
 
-    val redirectFinder = new RedirectFinder(lang)
+    val langBC = rdd.sparkContext.broadcast(lang)
 
-    // TODO: usually, flatMap can be applied to Option, but not here. That's why
-    // RedirectFinder.apply returns a List, not an Option. Some implicit missing?
-    def genMapper(kryoWrapper: KryoSerializationWrapper[(WikiPage => List[(String, String)])])
-                 (page: WikiPage): List[(String, String)] =
-    {
-      kryoWrapper.value.apply(page)
-    }
-    val mapper = genMapper(KryoSerializationWrapper(new RedirectFinder(lang))) _
+    // Wrap the map function inside a KryoSerializationWrapper
+    val mapper = SparkUtils.kryoWrapFunction(new RedirectFinder(langBC))
     val redirects = new Redirects(rdd.flatMap(mapper).collectAsMap().toMap)
 
     logger.info("Redirects loaded from source (" + lang.wikiCode + ")")
     redirects
   }
 
-  private class RedirectFinder(lang: Language) extends (WikiPage => List[(String, String)])
+  private class RedirectFinder(lang: Broadcast[Language]) extends (WikiPage => List[(String, String)])
   {
     val regex = buildRegex
 
     private def buildRegex =
     {
-      val redirects = Redirect(lang).mkString("|")
+      val redirects = Redirect(lang.value).mkString("|")
       // (?ius) enables CASE_INSENSITIVE UNICODE_CASE DOTALL
       // case insensitive and unicode are important - that's what mediawiki does.
       // Note: Although we do not specify a Locale, UNICODE_CASE does mostly the right thing.
