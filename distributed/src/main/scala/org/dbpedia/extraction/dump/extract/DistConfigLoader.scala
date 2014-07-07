@@ -14,13 +14,13 @@ import java.util.logging.{Level, Logger}
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.dump.download.Download
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.{Text, LongWritable}
-import scala.xml.XML
-import org.dbpedia.extraction.spark.io.XmlInputFormat
+import org.apache.hadoop.io.LongWritable
+import org.dbpedia.extraction.spark.io.WikiPageWritable
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
+import org.dbpedia.extraction.spark.io.input.DBpediaWikiPageInputFormat
 
 /**
  * Loads the dump extraction configuration.
@@ -83,17 +83,14 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
             FileInputFormat.addInputPath(job, file)
 
           val updatedConf = job.getConfiguration
+          updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
 
-          // Create RDD with <page>...</page> elements.
-          val rawArticlesRDD: RDD[(LongWritable, Text)] =
-            sparkContext.newAPIHadoopRDD(updatedConf, classOf[XmlInputFormat], classOf[LongWritable], classOf[Text])
+          // Create RDD with WikiPageWritable elements.
+          val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
+            sparkContext.newAPIHadoopRDD(updatedConf, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
 
-          // Function to parse a <page>...</page> string into a WikiPage.
-          val wikiPageParser: (((LongWritable, Text)) => WikiPage) =
-            keyValue => XMLSource.fromXML(XML.loadString("<mediawiki>" + keyValue._2.toString + "</mediawiki>"), lang).toSeq.head
-          val mapper = SparkUtils.kryoWrapFunction(wikiPageParser)
-
-          val newRdd = rawArticlesRDD.map(mapper).filter
+          // Unwrap WikiPages and filter unnecessary pages
+          val newRdd = rawArticlesRDD.map(_._2.get).filter
                        {
                          page =>
                            page.title.namespace == Namespace.Main ||
