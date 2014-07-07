@@ -40,7 +40,7 @@ class DistRedirectsTest extends FunSuite
     val configProperties = ConfigUtils.loadConfig(configFileResource.toURI.getPath, "UTF-8")
     val distConfigProperties = ConfigUtils.loadConfig(sparkConfigFileResource.toURI.getPath, "UTF-8")
     val config = new Config(configProperties)
-    val distConfig = new DistConfig(distConfigProperties, configProperties)
+    val distConfig = new DistConfig(distConfigProperties, configProperties, configFileResource.toURI)
     implicit val hadoopConfiguration = distConfig.hadoopConf
     val lang = config.extractorClasses.iterator.next()._1
 

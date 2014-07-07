@@ -8,6 +8,7 @@ import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.conf.Configuration
 import java.io.File
 import org.apache.spark.storage.StorageLevel
+import java.net.URI
 
 /**
  * Class for distributed configuration. Delegates general stuff except directory/file properties to Config.
@@ -19,7 +20,7 @@ import org.apache.spark.storage.StorageLevel
  * @param extractionConfigProps General extraction framework configuration properties
  * @see Config
  */
-class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
+class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties, val extractionConfigFile: URI)
 {
   private val extractionConfig = new ExtractionConfig()
 
