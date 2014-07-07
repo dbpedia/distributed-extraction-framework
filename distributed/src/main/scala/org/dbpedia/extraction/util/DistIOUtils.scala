@@ -59,7 +59,7 @@ object DistIOUtils
   {
     val arrayOfRddClass = Class.forName("[L" + rddClass.getName + ";")
     val conf = new Configuration()
-    val job = new Job()
+    val job = Job.getInstance(conf)
     FileInputFormat.addInputPath(job, path)
     val updatedConf = job.getConfiguration
     val serializedRDD = sc.newAPIHadoopRDD(updatedConf, classOf[SequenceFileInputFormat[NullWritable, BytesWritable]], classOf[NullWritable], classOf[BytesWritable])
