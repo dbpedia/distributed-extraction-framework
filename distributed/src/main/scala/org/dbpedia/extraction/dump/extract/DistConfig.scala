@@ -64,6 +64,18 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties)
     hadoopConf
   }
 
+  /**
+   * Whether the intermediate RDD[WikiPage] should be cached to Hadoop's filesystem (true/false).
+   * This is false by default.
+   *
+   * Performance implications:
+   * 1. Caching will make further extractions over the same dump much faster.
+   * 2. Caching will force early evaluation of the RDD and will cause some delay before extraction.
+   *
+   * If you are not planning on repeated extractions over the same dump it is best to leave this as it is.
+   */
+  val cacheWikiPageRDD = distConfigProps.getProperty("cache-wikipages", "false").toBoolean
+
   /** Dump directory */
   val dumpDir = getPath("base-dir", pathMustExist = true)
 

@@ -102,8 +102,12 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
                              page.title.namespace == Namespace.Template
                        }.cache()
 
-          DistIOUtils.saveRDD(newRdd, cache)
-          logger.info("Parsed WikiPages written to cache file " + cache)
+          if (config.cacheWikiPageRDD)
+          {
+            DistIOUtils.saveRDD(newRdd, cache)
+            logger.info("Parsed WikiPages written to cache file " + cache)
+          }
+
           newRdd
         }
       }
