@@ -8,9 +8,9 @@ import org.dbpedia.extraction.spark.serialize.WikiPageSerializer
 import org.dbpedia.extraction.util.DistIOUtils
 
 /**
-* DBpediaWikiPageInputFormat emits values of type WikiPageWritable. This class holds a single WikiPage instance.
-* @see DBpediaWikiPageInputFormat
-*/
+ * DBpediaWikiPageInputFormat emits values of type WikiPageWritable. This class holds a single WikiPage instance.
+ * @see DBpediaWikiPageInputFormat
+ */
 class WikiPageWritable(wikiPage: WikiPage) extends Writable
 {
   var _wikiPage = wikiPage

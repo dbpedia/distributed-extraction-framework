@@ -3,14 +3,13 @@ package org.dbpedia.extraction.spark.io
 import org.dbpedia.extraction.destinations.Quad
 import org.apache.hadoop.io.Writable
 import org.dbpedia.extraction.util.DistIOUtils
-import java.io.{DataInputStream, DataOutput, ByteArrayOutputStream, DataInput}
+import java.io.{DataOutput, ByteArrayOutputStream, DataInput}
 import com.esotericsoftware.kryo.io.{Input, Output}
-import com.twitter.chill.EnumerationSerializer
 
 /**
-* Created by nilesh on 4/7/14.
-*/
-class QuadSeqWritable(quads: Seq[Quad])  extends Writable
+ * Writable wrapping Seq[Quad] - used by custom OutputFormat
+ */
+class QuadSeqWritable(quads: Seq[Quad]) extends Writable
 {
   var _quads = quads
 
