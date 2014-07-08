@@ -62,8 +62,7 @@ object DistRedirects
     val redirects = loadFromRDD(rdd, lang)
 
     val dir = cache.getParent
-    val fs = dir.getFileSystem(hadoopConf)
-    if (!dir.exists && !fs.mkdirs(dir)) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
+    if (!dir.exists && !dir.mkdirs()) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
     val output = new Output(new BufferedOutputStream(cache.outputStream()))
     try
     {
