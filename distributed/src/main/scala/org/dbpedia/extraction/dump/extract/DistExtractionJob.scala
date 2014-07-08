@@ -6,7 +6,8 @@ import org.dbpedia.extraction.mappings.RootExtractor
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.Namespace
 import org.apache.spark.rdd.RDD
-import org.dbpedia.extraction.util.SparkUtils
+import org.dbpedia.extraction.util.StringUtils
+import org.apache.spark.SparkContext._
 import org.dbpedia.util.Exceptions
 
 /**
@@ -20,59 +21,58 @@ import org.dbpedia.util.Exceptions
  */
 class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], val namespaces: Set[Namespace], destination: DistDestination, label: String, description: String)
 {
-  val logger = Logger.getLogger(getClass.getName)
-
-  val progress = new ExtractionProgress(label, description)
+  private val logger = Logger.getLogger(getClass.getName)
 
   def run(): Unit =
   {
-    progress.start()
+    val sc = rdd.sparkContext
+    val allPages = sc.accumulator(0)
+    val failedPages = sc.accumulator(0)
+
+    val loggerBC = sc.broadcast(logger)
+    val extractorBC = sc.broadcast(extractor)
+    val namespacesBC = sc.broadcast(namespaces)
+
+    val startTime = System.currentTimeMillis
+
+    val results: RDD[Seq[Quad]] =
+      rdd.map
+      {
+        page =>
+          // Take a WikiPage, perform the extraction with a set of extractors and return the results as a Seq[Quad].
+          val (success, graph) = try
+          {
+            (true, if (namespacesBC.value.contains(page.title.namespace)) Some(extractorBC.value.apply(page)) else None)
+          }
+          catch
+            {
+              case ex: Exception =>
+                loggerBC.value.log(Level.WARNING, "error processing page '" + page.title + "': " + Exceptions.toString(ex, 200))
+                (false, None)
+            }
+
+          if (success) allPages += 1 else failedPages += 1
+
+          graph.getOrElse(Nil)
+      }
+
+    logger.info(description+" started")
+
     destination.open()
 
-    // Wrap the ExtractorMapper to make the closure Kryo-serialized.
-    val mapper = SparkUtils.kryoWrapFunction(new ExtractorMapper(extractor, namespaces))
-
-    // Map the RDD[WikiPage] into the resulting RDD.
-    val results: RDD[Seq[Quad]] = rdd.map(mapper)
+    logger.info("Writing outputs to destination...")
 
     destination.write(results)
 
     destination.close()
-    progress.end()
-  }
-}
 
+    val time = System.currentTimeMillis - startTime
+    println("%s: extracted %d pages in %s (per page: %f ms; failed pages: %d).".format(label,
+                                                                                       allPages.value,
+                                                                                       StringUtils.prettyMillis(time),
+                                                                                       time.toDouble / allPages.value,
+                                                                                       failedPages.value))
 
-/**
- * This is the actual mapper that takes a WikiPage, performs the extraction with the set of extractors
- * and returns the results as a Seq[Quad]. This is similar to what happens in ExtractionJob.
- *
- * @param extractor
- * @param namespaces
- */
-class ExtractorMapper(val extractor: RootExtractor, val namespaces: Set[Namespace]) extends (WikiPage => Seq[Quad])
-{
-
-  private lazy val logger = Logger.getLogger(getClass.getName)
-
-  override def apply(page: WikiPage): Seq[Quad] =
-  {
-    var success = false
-    var graph: Seq[Quad] = null
-    try
-    {
-      if (namespaces.contains(page.title.namespace))
-      {
-        graph = extractor(page)
-      }
-      success = true
-    } catch
-      {
-        case ex: Exception => logger.log(Level.WARNING, "error processing page '" + page.title + "': " + Exceptions.toString(ex, 200))
-      }
-    if (graph != null)
-      graph
-    else
-      Nil
+    logger.info(description+" finished")
   }
 }
