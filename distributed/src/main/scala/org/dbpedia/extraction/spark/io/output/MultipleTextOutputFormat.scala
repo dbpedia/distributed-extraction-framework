@@ -87,7 +87,7 @@ class MultipleTextOutputFormat[K, V] extends TextOutputFormat[K, V]
     val fs = file.getFileSystem(conf)
     val fileOutputStream = fs.create(file, overwriteOutput)
 
-    getBaseRecordWriter(fileOutputStream, keyValueSeparator, codec)
+    getBaseRecordWriter(context, fileOutputStream, keyValueSeparator, codec)
   }
 
   /**
@@ -113,12 +113,14 @@ class MultipleTextOutputFormat[K, V] extends TextOutputFormat[K, V]
    * Construct the underlying RecordWriter. By default creates a LineRecordWriter that is used by
    * TextOutputFormat by default.
    *
+   * @param context TaskAttemptContext
    * @param out DataOutputStream where output data is written to
    * @param keyValueSeparator String separator between output key and value
    * @param codec Option[CompressionCodec] for handling compression
    * @return A RecordWriter object over the given DataOutputStream
    */
-  protected def getBaseRecordWriter(out: DataOutputStream,
+  protected def getBaseRecordWriter(context: TaskAttemptContext,
+                                    out: DataOutputStream,
                                     keyValueSeparator: String,
                                     codec: Option[CompressionCodec] = None): RecordWriter[K, V] =
   {

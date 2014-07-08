@@ -32,12 +32,14 @@ class DBpediaDatasetOutputFormat(langWikiCode: String,
    * Construct the underlying RecordWriter. By default creates a LineRecordWriter that is used by
    * TextOutputFormat by default.
    *
+   * @param context TaskAttemptContext
    * @param out DataOutputStream where output data is written to
    * @param keyValueSeparator String separator between output key and value
    * @param codec Option[CompressionCodec] for handling compression
    * @return A RecordWriter object over the given DataOutputStream
    */
-  override protected def getBaseRecordWriter(out: DataOutputStream,
+  override protected def getBaseRecordWriter(context: TaskAttemptContext,
+                                             out: DataOutputStream,
                                              keyValueSeparator: String,
                                              codec: Option[CompressionCodec] = None): RecordWriter[Text, QuadSeqWritable] =
   {
