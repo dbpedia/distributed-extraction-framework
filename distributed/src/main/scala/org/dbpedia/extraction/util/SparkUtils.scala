@@ -52,6 +52,7 @@ object SparkUtils
    * @return
    */
   def getSparkContext(config: DistConfig) =
+  synchronized
   {
     if (sc == null)
     {
