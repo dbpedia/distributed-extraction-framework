@@ -92,14 +92,6 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
         {
           logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
 
-          // Add input sources
-          val job = Job.getInstance(hadoopConfiguration)
-          for (file <- files(config.source, finder, date))
-            FileInputFormat.addInputPath(job, file)
-
-          val updatedConf = job.getConfiguration
-          updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
-
           // Create RDD with WikiPageWritable elements.
           val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
             sparkContext.newAPIHadoopRDD(updatedConf, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
