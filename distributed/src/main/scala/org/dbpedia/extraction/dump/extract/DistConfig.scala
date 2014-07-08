@@ -86,6 +86,9 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
     hadoopConf
   }
 
+  /** Whether output files should be overwritten or not (true/false). This is true by default. */
+  val overwriteOutput = distConfigProps.getProperty("overwrite-output", "true").toBoolean
+
   /**
    * Whether the intermediate RDD[WikiPage] should be cached to Hadoop's filesystem (true/false).
    * This is false by default.

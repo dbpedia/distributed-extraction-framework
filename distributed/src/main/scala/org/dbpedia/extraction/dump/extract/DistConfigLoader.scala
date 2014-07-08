@@ -7,7 +7,6 @@ import org.dbpedia.extraction.sources.{Source, WikiPage, XMLSource, WikiSource}
 import org.dbpedia.extraction.util._
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.dbpedia.extraction.wikiparser.Namespace
-import scala.collection.mutable.{ArrayBuffer, HashMap}
 import java.io._
 import java.net.URL
 import java.util.logging.{Level, Logger}
@@ -59,6 +58,22 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     // upon whether we are running in local mode or distributed/cluster mode.
     val finder = new Finder[Path](dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
+
+    // Add input sources
+    val job = Job.getInstance(hadoopConfiguration)
+    for (file <- files(config.source, finder, date))
+      FileInputFormat.addInputPath(job, file)
+
+    // Add the extraction configuration file to distributed cache.
+    // It will be needed in DBpediaCompositeOutputFormat for getting the Formatters.
+    job.addCacheFile(config.extractionConfigFile)
+
+    val updatedConf = job.getConfiguration
+    // Setup config variables needed by DBpediaWikiPageInputFormat and DBpediaCompositeOutputFormat.
+    updatedConf.set("dbpedia.wiki.name", config.wikiName)
+    updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
+    updatedConf.set("dbpedia.wiki.date", date)
+    updatedConf.setBoolean("dbpedia.output.overwrite", config.overwriteOutput)
 
     // Getting the WikiPages from local on-disk cache saves processing time.
     val cache = finder.file(date, "articles-rdd")
@@ -175,24 +190,18 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 
     // Extractors
     val extractor = CompositeParseExtractor.load(extractorClasses, context)
+
+    // Create empty directories for all datasets. This is not strictly necessary because Hadoop would create the directories
+    // it needs to by itself, though in that case the directories for unused datasets will obviously be absent.
     val datasets = extractor.datasets
+    val outputPath = finder.directory(date)
 
-    // Setup destinations for each dataset
-    val formatDestinations = new ArrayBuffer[Destination]()
-    for ((suffix, format) <- config.formats)
+    for ((suffix, format) <- config.formats; dataset <- datasets)
     {
-
-      val datasetDestinations = new HashMap[String, Destination]()
-      for (dataset <- datasets)
-      {
-        val file = finder.file(date, dataset.name.replace('_', '-') + '.' + suffix)
-        datasetDestinations(dataset.name) = new DeduplicatingDestination(new WriterDestination(writer(file), format))
-      }
-
-      formatDestinations += new DatasetDestination(datasetDestinations)
+      new Path(outputPath, s"${finder.wikiName}-$date-${dataset.name.replace('_', '-')}.$suffix").mkdirs()
     }
 
-    val destination = new MarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false)
+    val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, updatedConf), finder.file(date, Extraction.Complete), false)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
     new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
