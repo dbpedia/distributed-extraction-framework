@@ -3,7 +3,7 @@ package org.dbpedia.extraction.spark.io.output
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 import org.dbpedia.extraction.spark.io.QuadSeqWritable
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.{RecordWriter, TaskAttemptContext}
+import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext}
 import scala.collection.mutable
 import org.dbpedia.extraction.destinations.formatters.UriPolicy
 import org.dbpedia.extraction.util.ConfigUtils
@@ -73,4 +73,6 @@ class DBpediaCompositeOutputFormat extends TextOutputFormat[Text, QuadSeqWritabl
   }
 
   override def getRecordWriter(context: TaskAttemptContext): RecordWriter[Text, QuadSeqWritable] = new DBpediaCompositeRecordWriter(context)
+
+  override def checkOutputSpecs(job: JobContext) = () // allow overwriting output directory
 }
