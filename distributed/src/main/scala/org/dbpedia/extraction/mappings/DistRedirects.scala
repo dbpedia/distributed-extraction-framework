@@ -4,16 +4,14 @@ import java.util.logging.{Level, Logger}
 import org.dbpedia.extraction.sources.WikiPage
 import java.io._
 import org.dbpedia.extraction.wikiparser._
-import org.dbpedia.extraction.util.{SparkUtils, DistIOUtils, Language}
+import org.dbpedia.extraction.util.{DistIOUtils, Language}
 import org.dbpedia.extraction.wikiparser.impl.wikipedia.Redirect
 import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext._
-import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.SparkContext._
 
 /**
  * Distributed version of Redirects; uses Spark to compute redirects.
@@ -106,75 +104,69 @@ object DistRedirects
   {
     logger.info("Loading redirects from source (" + lang.wikiCode + ")")
 
-    val langBC = rdd.sparkContext.broadcast(lang)
+    val regexBC = rdd.sparkContext.broadcast(buildRegex(lang))
 
     // Wrap the map function inside a KryoSerializationWrapper
-    val mapper = SparkUtils.kryoWrapFunction(new RedirectFinder(langBC))
-    val redirects = new Redirects(rdd.flatMap(mapper).collectAsMap().toMap)
+    //    val mapper = SparkUtils.kryoWrapFunction(new RedirectFinder(langBC))
+    //    val redirects = new Redirects(rdd.flatMap(mapper).collectAsMap().toMap)
+
+    val redirectsRDD = rdd.flatMap
+                       {
+                         case page: WikiPage =>
+                           val regex = regexBC.value
+
+                           val destinationTitle = page.source match
+                           {
+                             case regex(destination) =>
+                               try
+                               {
+                                 WikiTitle.parse(destination, page.title.language)
+                               }
+                               catch
+                                 {
+                                   case ex: WikiParserException =>
+                                     Logger.getLogger(Redirects.getClass.getName).log(Level.WARNING, "Couldn't parse redirect destination", ex)
+                                     null
+                                 }
+                             case _ => null
+                           }
+
+                           if (destinationTitle != page.redirect)
+                           {
+                             Logger.getLogger(Redirects.getClass.getName).log(Level.WARNING, "wrong redirect. page: [" + page.title + "].\nfound by dbpedia:   [" + destinationTitle + "].\nfound by wikipedia: [" + page.redirect + "]")
+                           }
+
+                           if (destinationTitle != null && page.title.namespace == Namespace.Template && destinationTitle.namespace == Namespace.Template)
+                           {
+                             List((page.title.decoded, destinationTitle.decoded))
+                           }
+                           else
+                           {
+                             Nil
+                           }
+                       }
+
+    val redirects = new Redirects(redirectsRDD.collectAsMap().toMap)
 
     logger.info("Redirects loaded from source (" + lang.wikiCode + ")")
     redirects
   }
 
-  private class RedirectFinder(lang: Broadcast[Language]) extends (WikiPage => List[(String, String)])
+  private def buildRegex(lang: Language) =
   {
-    val regex = buildRegex
-
-    private def buildRegex =
-    {
-      val redirects = Redirect(lang.value).mkString("|")
-      // (?ius) enables CASE_INSENSITIVE UNICODE_CASE DOTALL
-      // case insensitive and unicode are important - that's what mediawiki does.
-      // Note: Although we do not specify a Locale, UNICODE_CASE does mostly the right thing.
-      // DOTALL means that '.' also matches line terminators.
-      // Reminder: (?:...) are non-capturing groups, '*?' is a reluctant qualifier.
-      // (?:#[^\n]*?)? is an optional (the last '?') non-capturing group meaning: there may
-      // be a '#' after which everything but line breaks is allowed ('[]{}|<>' are not allowed
-      // before the '#'). The match is reluctant ('*?'), which means that we recognize ']]'
-      // as early as possible.
-      // (?:\|[^\n]*?)? is another optional non-capturing group that reluctantly consumes
-      // a '|' character and everything but line breaks after it.
-      ("""(?ius)\s*(?:""" + redirects + """)\s*:?\s*\[\[([^\[\]{}|<>\n]+(?:#[^\n]*?)?)(?:\|[^\n]*?)?\]\].*""").r
-    }
-
-    override def apply(page: WikiPage): List[(String, String)] =
-    {
-      val destinationTitle: WikiTitle =
-        page.source match
-        {
-          case regex(destination) =>
-          {
-            try
-            {
-
-              WikiTitle.parse(destination, page.title.language)
-            }
-            catch
-              {
-                case ex: WikiParserException =>
-                {
-                  Logger.getLogger(Redirects.getClass.getName).log(Level.WARNING, "Couldn't parse redirect destination", ex)
-                  null
-                }
-              }
-          }
-          case _ => null
-        }
-
-      if (destinationTitle != page.redirect)
-      {
-        Logger.getLogger(Redirects.getClass.getName).log(Level.WARNING, "wrong redirect. page: [" + page.title + "].\nfound by dbpedia:   [" + destinationTitle + "].\nfound by wikipedia: [" + page.redirect + "]")
-      }
-
-      if (destinationTitle != null && page.title.namespace == Namespace.Template && destinationTitle.namespace == Namespace.Template)
-      {
-        List((page.title.decoded, destinationTitle.decoded))
-      }
-      else
-      {
-        Nil
-      }
-    }
+    val redirects = Redirect(lang).mkString("|")
+    // (?ius) enables CASE_INSENSITIVE UNICODE_CASE DOTALL
+    // case insensitive and unicode are important - that's what mediawiki does.
+    // Note: Although we do not specify a Locale, UNICODE_CASE does mostly the right thing.
+    // DOTALL means that '.' also matches line terminators.
+    // Reminder: (?:...) are non-capturing groups, '*?' is a reluctant qualifier.
+    // (?:#[^\n]*?)? is an optional (the last '?') non-capturing group meaning: there may
+    // be a '#' after which everything but line breaks is allowed ('[]{}|<>' are not allowed
+    // before the '#'). The match is reluctant ('*?'), which means that we recognize ']]'
+    // as early as possible.
+    // (?:\|[^\n]*?)? is another optional non-capturing group that reluctantly consumes
+    // a '|' character and everything but line breaks after it.
+    ("""(?ius)\s*(?:""" + redirects + """)\s*:?\s*\[\[([^\[\]{}|<>\n]+(?:#[^\n]*?)?)(?:\|[^\n]*?)?\]\].*""").r
   }
-
 }
+
