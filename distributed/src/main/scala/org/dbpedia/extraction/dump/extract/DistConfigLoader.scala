@@ -124,6 +124,53 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
         }
       }
 
+    val _ontology =
+    {
+      val ontologySource = config.ontologyFile match
+      {
+        case Some(ontologyFile) if ontologyFile.isFile =>
+          // Is ontologyFile defined and it is indeed a file?
+          XMLSource.fromReader(reader(ontologyFile), Language.Mappings)
+        case _ =>
+          val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
+          val url = new URL(Language.Mappings.apiUri)
+          val language = Language.Mappings
+          WikiSource.fromNamespaces(namespaces, url, language)
+      }
+
+      new OntologyReader().read(ontologySource)
+    }
+
+    val _commonsSource =
+    {
+      try
+      {
+        val finder = new Finder[Path](config.dumpDir.get, Language("commons"), config.wikiName)
+        val date = latestDate(finder)
+        XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
+      }
+      catch
+        {
+          case ex: Exception =>
+            logger.info("Could not load commons source - error: " + ex.getMessage)
+            null
+        }
+    }
+
+    val _disambiguations =
+    {
+      val cache = finder.file(date, "disambiguations-ids.obj")
+      try
+      {
+        DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, lang)
+      } catch
+        {
+          case ex: Exception =>
+            logger.info("Could not load disambiguations - error: " + ex.getMessage)
+            null
+        }
+    }
+
     val _redirects =
     {
       val cache = finder.file(date, "template-redirects.obj")
@@ -168,20 +215,6 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 
       def redirects: Redirects = _redirects
 
-      private val _disambiguations =
-      {
-        val cache = finder.file(date, "disambiguations-ids.obj")
-        try
-        {
-          DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language)
-        } catch
-          {
-            case ex: Exception =>
-              logger.info("Could not load disambiguations - error: " + ex.getMessage)
-              null
-          }
-      }
-
       def disambiguations: Disambiguations = if (_disambiguations != null) _disambiguations else new Disambiguations(Set[Long]())
 
     })
@@ -208,42 +241,6 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
   }
 
   implicit def hadoopConfiguration: Configuration = config.hadoopConf
-
-  //language-independent val
-  private val _ontology =
-  {
-    val ontologySource = config.ontologyFile match
-    {
-      case Some(ontologyFile) if ontologyFile.isFile =>
-        // Is ontologyFile defined and it is indeed a file?
-        XMLSource.fromReader(reader(ontologyFile), Language.Mappings)
-      case _ =>
-        val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
-        val url = new URL(Language.Mappings.apiUri)
-        val language = Language.Mappings
-        WikiSource.fromNamespaces(namespaces, url, language)
-    }
-
-    new OntologyReader().read(ontologySource)
-  }
-
-  //language-independent val
-  private val _commonsSource =
-  {
-    try
-    {
-      val finder = new Finder[Path](config.dumpDir.get, Language("commons"), config.wikiName)
-      val date = latestDate(finder)
-      XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
-    }
-    catch
-      {
-        case ex: Exception =>
-          logger.info("Could not load commons source - error: " + ex.getMessage)
-          null
-      }
-  }
-
 
   private def writer[T <% FileLike[_]](file: T): () => Writer =
   {
