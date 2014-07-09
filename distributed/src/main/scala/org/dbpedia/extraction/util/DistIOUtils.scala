@@ -1,9 +1,7 @@
 package org.dbpedia.extraction.util
 
 import com.esotericsoftware.kryo.Kryo
-import java.util.Locale
-import org.dbpedia.extraction.spark.serialize.LocaleSerializer
-import org.objenesis.strategy.StdInstantiatorStrategy
+import org.dbpedia.extraction.spark.serialize.KryoSerializer
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
@@ -34,13 +32,7 @@ object DistIOUtils
   /**
    * @return new Kryo instance.
    */
-  def getNewKryo(): Kryo =
-  {
-    val kryo = new Kryo()
-    kryo.addDefaultSerializer(classOf[Locale], classOf[LocaleSerializer])
-    kryo.setInstantiatorStrategy(new StdInstantiatorStrategy())
-    kryo
-  }
+  def getNewKryo(): Kryo = KryoSerializer.ser.newKryo()
 
   /**
    * Loads an RDD saved as a SequenceFile containing objects serialized by Kryo,
@@ -67,7 +59,7 @@ object DistIOUtils
   {
     val arrayOfRddClass = Class.forName("[L" + rddClass.getName + ";")
     val conf = new Configuration()
-    val job = new Job()
+    val job = Job.getInstance(conf)
     FileInputFormat.addInputPath(job, path)
     val updatedConf = job.getConfiguration
     val serializedRDD = sc.newAPIHadoopRDD(updatedConf, classOf[SequenceFileInputFormat[NullWritable, BytesWritable]], classOf[NullWritable], classOf[BytesWritable])

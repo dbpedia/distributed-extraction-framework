@@ -5,6 +5,7 @@ import java.net.Authenticator
 import scala.concurrent.{Await, Future, future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.Duration
+import java.io.File
 
 /**
  * Dump extraction script.
@@ -24,7 +25,7 @@ object DistExtraction
     // Load properties
     val extractionConfigProps = ConfigUtils.loadConfig(args(0), "UTF-8")
     val distConfigProps = ConfigUtils.loadConfig(args(1), "UTF-8")
-    val distConfig = new DistConfig(distConfigProps, extractionConfigProps)
+    val distConfig = new DistConfig(distConfigProps, extractionConfigProps, new File(args(0)).toURI)
 
     // overwrite properties with CLI args
     // TODO arguments could be of the format a=b and then property a can be overwritten with "b"

@@ -40,7 +40,7 @@ class DistRedirectsTest extends FunSuite
     val configProperties = ConfigUtils.loadConfig(configFileResource.toURI.getPath, "UTF-8")
     val distConfigProperties = ConfigUtils.loadConfig(sparkConfigFileResource.toURI.getPath, "UTF-8")
     val config = new Config(configProperties)
-    val distConfig = new DistConfig(distConfigProperties, configProperties)
+    val distConfig = new DistConfig(distConfigProperties, configProperties, configFileResource.toURI)
     implicit val hadoopConfiguration = distConfig.hadoopConf
     val lang = config.extractorClasses.iterator.next()._1
 
@@ -60,7 +60,7 @@ class DistRedirectsTest extends FunSuite
     val sc = SparkUtils.getSparkContext(distConfig)
     // Generate RDD from the article source for DistRedirects to load from in parallel
     // Naively calls toArray on Seq, only for testing
-    val rdd = sc.parallelize(articleSource.toSeq)
+    val rdd = sc.parallelize(articleSource.toSeq, distConfig.sparkNumSlices)
     (distConfig, articleSource, rdd, lang, date, distFinder)
   }
 

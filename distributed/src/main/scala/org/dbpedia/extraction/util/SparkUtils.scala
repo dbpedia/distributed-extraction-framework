@@ -1,6 +1,6 @@
 package org.dbpedia.extraction.util
 
-import org.apache.spark.{SparkContext, SparkConf}
+import org.apache.spark.{Logging, SparkContext, SparkConf}
 import org.dbpedia.extraction.dump.extract.DistConfig
 import org.apache.log4j.{Logger, Level}
 import java.nio.file.{Paths, Files}
@@ -8,6 +8,7 @@ import java.io.FileNotFoundException
 import scala.reflect.ClassTag
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
+import org.apache.spark.ui.jobs.DBpediaJobProgressListener
 
 /**
  * Utility functions specific to Spark
@@ -52,6 +53,7 @@ object SparkUtils
    * @return
    */
   def getSparkContext(config: DistConfig) =
+  synchronized
   {
     if (sc == null)
     {
@@ -71,11 +73,13 @@ object SparkUtils
       }
 
       conf.setJars(List(distJarName))
-      //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
       conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
       conf.set("spark.kryoserializer.buffer.mb", "100")
       sc = new SparkContext(conf)
+      // No logging is done upon omitting 'with Logging' - some package problem?
+      setLogLevels(Level.INFO, Seq("org.apache.spark.ui.jobs.DBpediaJobProgressListener"))
+      sc.addSparkListener(new DBpediaJobProgressListener(sc))
     }
     sc
   }
