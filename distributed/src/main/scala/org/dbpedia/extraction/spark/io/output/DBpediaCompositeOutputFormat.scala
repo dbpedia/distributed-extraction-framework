@@ -27,6 +27,8 @@ import org.dbpedia.extraction.util.ConfigUtils
 * 3. Also, the output needs to be grouped by dataset such that each key is a Text representing the dataset
 * to which the Quads in the value belong to. Example key: article_categories
 *
+* NOTE: When using this with Spark set only one core per worker.
+*
 * Output will look like Hadoop leaf files (eg. part-r-00000) inside directories like enwiki-20140614-article-categories.tql.
 * The files will be compressed using the specified compression codec.
 *
@@ -52,6 +54,11 @@ class DBpediaCompositeOutputFormat extends TextOutputFormat[Text, QuadSeqWritabl
       UriPolicy.parseFormats(config, "uri-policy", "format")
     }
 
+    /**
+     * Note: This method is not synchronized, keeping with the rest of the Hadoop code in this framework.
+     * When using this with Spark set only one core per worker to ensure that only one thread accesses
+     * this method per JVM.
+     */
     override def write(key: Text, value: QuadSeqWritable)
     {
       for ((suffix, format) <- formatters)
