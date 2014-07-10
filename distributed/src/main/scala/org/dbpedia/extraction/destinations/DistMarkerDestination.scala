@@ -1,10 +1,10 @@
 package org.dbpedia.extraction.destinations
 
 import org.dbpedia.extraction.util.FileLike
-import org.apache.spark.rdd.RDD
+import java.io.IOException
 
 /**
- * Distributed version of MakerDestination that mixes in the DistDestination trait.
+ * MakerDestination that wraps a DistDestination. The code has been taken from MakerDestination.
  *
  * Handles a marker file that signals that the extraction is either running ('start mode')
  * or finished ('end mode').
@@ -19,7 +19,28 @@ import org.apache.spark.rdd.RDD
  * @param start 'start mode' if true, 'end mode' if false.
  */
 class DistMarkerDestination(destination: DistDestination, file: FileLike[_], start: Boolean)
-  extends MarkerDestination(destination, file, start) with DistDestination
+  extends DistWrapperDestination(destination)
 {
-  override def write(rdd: RDD[Seq[Quad]]) = destination.write(rdd)
+  override def open(): Unit =
+  {
+    if (start) create() else delete()
+    super.open()
+  }
+
+  override def close(): Unit =
+  {
+    super.close()
+    if (!start) create() else delete()
+  }
+
+  private def create(): Unit =
+  {
+    if (file.exists) throw new IOException("file '" + file + "' already exists")
+    file.outputStream().close()
+  }
+
+  private def delete(): Unit =
+  {
+    if (file.exists) file.delete()
+  }
 }

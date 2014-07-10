@@ -5,8 +5,14 @@ import org.apache.spark.rdd.RDD
 /**
  * A distributed destination for RDF quads.
  */
-trait DistDestination extends Destination
+trait DistDestination
 {
+  /**
+   * Opens this destination. This method should only be called once during the lifetime
+   * of a destination, and it should not be called concurrently with other methods of this class.
+   */
+  def open(): Unit
+
   /**
    * Writes RDD of quads to this destination.
    *
@@ -15,9 +21,8 @@ trait DistDestination extends Destination
   def write(rdd: RDD[Seq[Quad]]): Unit
 
   /**
-   * This is not implemented.
-   *
-   * @param graph Traversable[Quad]
+   * Closes this destination. This method should only be called once during the lifetime
+   * of a destination, and it should not be called concurrently with other methods of this class.
    */
-  final override def write(graph: Traversable[Quad]): Unit = ???
+  def close(): Unit
 }
