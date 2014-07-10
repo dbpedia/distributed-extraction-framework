@@ -9,31 +9,31 @@ import org.dbpedia.extraction.destinations.formatters.UriPolicy
 import org.dbpedia.extraction.util.ConfigUtils
 
 /**
-* OutputFormat implementation that uses the configured Formatters to write Quads to respective datasets
-* through the DBpediaDatasetOutputFormat class. This class uses as many DBpediaDatasetOutputFormat objects
-* as there are configured formats. Formats are read in from the provided extraction config properties file.
-* This class handles configuration and Formatters, while DBpediaDatasetOutputFormat handles dividing the Quads
-* into datasets.
-*
-* 1. To use this OutputFormat three Strings need to be set in Hadoop's Configuration:
-* dbpedia.wiki.name - Config.wikiName, the wiki suffix (eg. wiki)
-* dbpedia.wiki.language.wikicode - Language wiki code of the input wiki dump
-* dbpedia.wiki.date - Wiki dump date in YYYYMMDD format
-* dbpedia.output.overwrite - Boolean, if set to true, output files will be overwritten if they already exist,
-* or else an IOException will be thrown (which is also the default behaviour) - this is actually for MultipleTextOutputFormat
-*
-* 2. The extraction config properties file needs to be added to the distributed cache.
-*
-* 3. Also, the output needs to be grouped by dataset such that each key is a Text representing the dataset
-* to which the Quads in the value belong to. Example key: article_categories
-*
-* NOTE: When using this with Spark set only one core per worker.
-*
-* Output will look like Hadoop leaf files (eg. part-r-00000) inside directories like enwiki-20140614-article-categories.tql.
-* The files will be compressed using the specified compression codec.
-*
-* @see DBpediaDatasetOutputFormat
-*/
+ * OutputFormat implementation that uses the configured Formatters to write Quads to respective datasets
+ * through the DBpediaDatasetOutputFormat class. This class uses as many DBpediaDatasetOutputFormat objects
+ * as there are configured formats. Formats are read in from the provided extraction config properties file.
+ * This class handles configuration and Formatters, while DBpediaDatasetOutputFormat handles dividing the Quads
+ * into datasets.
+ *
+ * 1. To use this OutputFormat three Strings need to be set in Hadoop's Configuration:
+ * dbpedia.wiki.name - Config.wikiName, the wiki suffix (eg. wiki)
+ * dbpedia.wiki.language.wikicode - Language wiki code of the input wiki dump
+ * dbpedia.wiki.date - Wiki dump date in YYYYMMDD format
+ * dbpedia.output.overwrite - Boolean, if set to true, output files will be overwritten if they already exist,
+ * or else an IOException will be thrown (which is also the default behaviour) - this is actually for MultipleTextOutputFormat
+ *
+ * 2. The extraction config properties file needs to be added to the distributed cache.
+ *
+ * 3. Also, the output needs to be grouped by dataset such that each key is a Text representing the dataset
+ * to which the Quads in the value belong to. Example key: article_categories
+ *
+ * NOTE: When using this with Spark set only one core per worker.
+ *
+ * Output will look like Hadoop leaf files (eg. part-r-00000) inside directories like enwiki-20140614-article-categories.tql.
+ * The files will be compressed using the specified compression codec.
+ *
+ * @see DBpediaDatasetOutputFormat
+ */
 class DBpediaCompositeOutputFormat extends TextOutputFormat[Text, QuadSeqWritable]
 {
   private val WIKI = "dbpedia.wiki.name"

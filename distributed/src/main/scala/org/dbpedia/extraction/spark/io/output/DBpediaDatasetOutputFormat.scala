@@ -9,19 +9,19 @@ import java.io.DataOutputStream
 import org.apache.hadoop.io.compress.CompressionCodec
 
 /**
-* OutputFormat implementation that writes Quads to respective datasets depending upon the key, after applying
-* a given Formatter. This class extends MultipleTextOutputFormat which allows it to write to multiple locations
-* (for multiple datasets) depending upon custom criteria.
-*
-* The output needs to be grouped by dataset such that each key is a Text representing the dataset to which
-* the Quads in the value belong to. Example key: article_categories
-*
-* @param langWikiCode Language wiki code of the input wiki dump
-* @param wikiNameSuffix Config.wikiName (eg. wiki)
-* @param date Wiki dump date in YYYYMMDD format
-* @param outputSuffix Output suffix corresponding to formatter (eg. tql)
-* @param formatter Formatter object used to render the Quad objects according to a specific format
-*/
+ * OutputFormat implementation that writes Quads to respective datasets depending upon the key, after applying
+ * a given Formatter. This class extends MultipleTextOutputFormat which allows it to write to multiple locations
+ * (for multiple datasets) depending upon custom criteria.
+ *
+ * The output needs to be grouped by dataset such that each key is a Text representing the dataset to which
+ * the Quads in the value belong to. Example key: article_categories
+ *
+ * @param langWikiCode Language wiki code of the input wiki dump
+ * @param wikiNameSuffix Config.wikiName (eg. wiki)
+ * @param date Wiki dump date in YYYYMMDD format
+ * @param outputSuffix Output suffix corresponding to formatter (eg. tql)
+ * @param formatter Formatter object used to render the Quad objects according to a specific format
+ */
 class DBpediaDatasetOutputFormat(langWikiCode: String,
                                  wikiNameSuffix: String,
                                  date: String,
@@ -109,9 +109,9 @@ class DBpediaDatasetOutputFormat(langWikiCode: String,
 
     override def close(context: TaskAttemptContext) =
     {
-        text.set(formatter.footer.dropRight(1)) // remove newline from footer
-        lineWriter.write(nullKey, text)
-        lineWriter.close(context)
+      text.set(formatter.footer.dropRight(1)) // remove newline from footer
+      lineWriter.write(nullKey, text)
+      lineWriter.close(context)
     }
   }
 
