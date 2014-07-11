@@ -37,7 +37,8 @@ object DistExtraction
     // Load extraction jobs from configuration
     val jobs = new DistConfigLoader(distConfig, sparkContext).getExtractionJobs()
 
-    implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(distConfig.extractionJobThreads))
+    val executor = Executors.newFixedThreadPool(distConfig.extractionJobThreads)
+    implicit val ec = ExecutionContext.fromExecutor(executor)
     val futures = for (job <- jobs) yield future
                                           {
                                             job.run()
@@ -45,5 +46,6 @@ object DistExtraction
     Await.result(Future.sequence(futures), Duration.Inf)
 
     sparkContext.stop()
+    executor.shutdown()
   }
 }
