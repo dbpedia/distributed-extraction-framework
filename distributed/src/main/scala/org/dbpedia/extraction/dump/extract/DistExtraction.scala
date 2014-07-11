@@ -2,10 +2,10 @@ package org.dbpedia.extraction.dump.extract
 
 import org.dbpedia.extraction.util.{SparkUtils, ProxyAuthenticator, ConfigUtils}
 import java.net.Authenticator
-import scala.concurrent.{Await, Future, future}
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Await, Future, future}
 import scala.concurrent.duration.Duration
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * Dump extraction script.
@@ -37,9 +37,7 @@ object DistExtraction
     // Load extraction jobs from configuration
     val jobs = new DistConfigLoader(distConfig, sparkContext).getExtractionJobs()
 
-    // Execute the extraction jobs in parallel using the default ExecutionContext
-    // TODO: Equip the framework with an OutputFormat or something so that DistExtractionJob can write output using Hadoop's API, in a distributed manner.
-    // TODO: Probably use a custom ExecutionContext and a non-blocking approach so that number of simultaneous jobs is NOT limited by driver/master node's CPU/threads.
+    implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(distConfig.extractionJobThreads))
     val futures = for (job <- jobs) yield future
                                           {
                                             job.run()
