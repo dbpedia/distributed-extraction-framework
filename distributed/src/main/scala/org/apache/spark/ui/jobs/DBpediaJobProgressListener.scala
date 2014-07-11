@@ -64,8 +64,9 @@ class DBpediaJobProgressListener(sc: SparkContext) extends JobProgressListener(s
     val stageId = taskEnd.task.stageId
     // Get TaskInfos for this stage to compute number of tasks
     val numTasks = this.stageIdToTaskInfos(stageId).size
-    val finished = this.stageIdToTasksComplete(stageId)
-    val failed = this.stageIdToTasksFailed(stageId)
+    // Wrap in try/catch to return 0 if no completed/failed tasks for stageId are found in the maps.
+    val finished = try { this.stageIdToTasksComplete(stageId) } catch { case ex: NoSuchElementException => 0 }
+    val failed = try { this.stageIdToTasksFailed(stageId) } catch { case ex: NoSuchElementException => 0 }
     logInfo("Stage #%d: Finished task #%d at %s. Completed: %d/%d Failed: %d/%d".format(stageId, taskId, time, finished, numTasks, failed, numTasks))
   }
 
