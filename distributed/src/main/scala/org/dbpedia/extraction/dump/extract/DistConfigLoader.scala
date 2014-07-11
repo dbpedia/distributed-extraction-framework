@@ -159,7 +159,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
         {
           case ex: Exception =>
             logger.info("Could not load disambiguations - error: " + ex.getMessage)
-            null
+            Disambiguations.empty()
         }
     }
 
