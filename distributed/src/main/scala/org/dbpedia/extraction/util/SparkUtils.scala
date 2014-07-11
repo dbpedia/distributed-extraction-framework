@@ -76,6 +76,7 @@ object SparkUtils
       conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
       conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
       conf.set("spark.kryoserializer.buffer.mb", "100")
+      conf.set("spark.cores.max", "1")
       sc = new SparkContext(conf)
       // No logging is done upon omitting 'with Logging' - some package problem?
       setLogLevels(Level.INFO, Seq("org.apache.spark.ui.jobs.DBpediaJobProgressListener"))
