@@ -90,7 +90,7 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
   /** This is used for setting log levels for "org.apache", "spark", "org.eclipse.jetty" and "akka" using
     * SparkUtils.setLogLevels(). It is WARN by default.
     */
-  val sparkLogLevel = getValue(distConfigProps, "logging-level", required = false)(Level.toLevel(_, Level.WARN))
+  val sparkLogLevel = Level.toLevel(distConfigProps.getProperty("logging-level"), Level.WARN)
 
   /**
    * Number of threads to use in the ExecutionContext while calling DistExtractionJob.run() on multiple
