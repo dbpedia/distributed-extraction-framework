@@ -39,12 +39,11 @@ object SparkUtils
   }
 
   /**
-   * Turn off most of spark logging.  Returns a map of the previous values so you can turn logging back to its
-   * former values
+   * Sets log levels for Spark and its peripheral libraries to DistConfig.sparkLogLevel.
    */
-  def silenceSpark() =
+  def setSparkLogLevels(config: DistConfig) =
   {
-    setLogLevels(Level.WARN, Seq("org.apache", "spark", "org.eclipse.jetty", "akka"))
+    setLogLevels(config.sparkLogLevel, Seq("org.apache", "spark", "org.eclipse.jetty", "akka"))
   }
 
   /**

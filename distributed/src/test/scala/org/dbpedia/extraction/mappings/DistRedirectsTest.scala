@@ -28,7 +28,7 @@ class DistRedirectsTest extends FunSuite
   rdd: RDD[WikiPage],
   language: Language,
   date: String,
-  distFinder: Finder[Path]) =
+  distFinder: Finder[Path]) = try
   {
     val configFileResource = getClass.getClassLoader.getResource(CONFIG_FILE)
     val sparkConfigFileResource = getClass.getClassLoader.getResource(SPARK_CONFIG_FILE)
@@ -56,13 +56,13 @@ class DistRedirectsTest extends FunSuite
                                               title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
                                                 title.namespace == Namespace.Category || title.namespace == Namespace.Template)
 
-    SparkUtils.silenceSpark()
+    SparkUtils.setSparkLogLevels(distConfig)
     val sc = SparkUtils.getSparkContext(distConfig)
     // Generate RDD from the article source for DistRedirects to load from in parallel
     // Naively calls toArray on Seq, only for testing
     val rdd = sc.parallelize(articleSource.toSeq, distConfig.sparkNumSlices)
     (distConfig, articleSource, rdd, lang, date, distFinder)
-  }
+  } catch{ case ex:Exception => ex.printStackTrace(); (null, null,null, null,null, null)}
 
   implicit def hadoopConfiguration: Configuration = distConfig.hadoopConf
 

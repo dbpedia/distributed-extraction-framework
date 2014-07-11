@@ -9,6 +9,7 @@ import org.apache.hadoop.conf.Configuration
 import java.io.File
 import org.apache.spark.storage.StorageLevel
 import java.net.URI
+import org.apache.log4j.Level
 
 /**
  * Class for distributed configuration. Delegates general stuff except directory/file properties to Config.
@@ -85,6 +86,11 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
 
     hadoopConf
   }
+
+  /** This is used for setting log levels for "org.apache", "spark", "org.eclipse.jetty" and "akka" using
+    * SparkUtils.setLogLevels(). It is WARN by default.
+    */
+  val sparkLogLevel = getValue(distConfigProps, "logging-level", required = false)(Level.toLevel(_, Level.WARN))
 
   /** Whether output files should be overwritten or not (true/false). This is true by default. */
   val overwriteOutput = distConfigProps.getProperty("overwrite-output", "true").toBoolean

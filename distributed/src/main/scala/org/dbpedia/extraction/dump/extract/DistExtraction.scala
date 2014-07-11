@@ -31,7 +31,7 @@ object DistExtraction
     // TODO arguments could be of the format a=b and then property a can be overwritten with "b"
 
     // Create SparkContext
-    SparkUtils.silenceSpark()
+    SparkUtils.setSparkLogLevels(distConfig)
     val sparkContext = SparkUtils.getSparkContext(distConfig)
 
     // Load extraction jobs from configuration
