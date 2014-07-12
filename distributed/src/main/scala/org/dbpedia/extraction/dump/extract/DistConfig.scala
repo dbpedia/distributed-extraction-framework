@@ -9,6 +9,7 @@ import org.apache.hadoop.conf.Configuration
 import java.io.File
 import org.apache.spark.storage.StorageLevel
 import java.net.URI
+import org.apache.log4j.Level
 
 /**
  * Class for distributed configuration. Delegates general stuff except directory/file properties to Config.
@@ -85,6 +86,24 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
 
     hadoopConf
   }
+
+  /** This is used for setting log levels for "org.apache", "spark", "org.eclipse.jetty" and "akka" using
+    * SparkUtils.setLogLevels(). It is WARN by default.
+    */
+  val sparkLogLevel = Level.toLevel(distConfigProps.getProperty("logging-level"), Level.WARN)
+
+  /**
+   * Number of threads to use in the ExecutionContext while calling DistExtractionJob.run() on multiple
+   * extraction jobs in parallel.
+   *
+   * Note that these threads on the driver node do not perform any heavy work except for executing
+   * DistExtractionJob.run() which submits the respective Spark job to the Spark master and waits
+   * for the job to finish.
+   *
+   * By default it is set to Integer.MAX_VALUE so that all extraction jobs are submitted to Spark master
+   * simultaneously, which uses the configured scheduling mechanism to execute the jobs on the cluster.
+   */
+  val extractionJobThreads = distConfigProps.getProperty("extraction-job-threads", Integer.MAX_VALUE.toString).toInt
 
   /** Whether output files should be overwritten or not (true/false). This is true by default. */
   val overwriteOutput = distConfigProps.getProperty("overwrite-output", "true").toBoolean
