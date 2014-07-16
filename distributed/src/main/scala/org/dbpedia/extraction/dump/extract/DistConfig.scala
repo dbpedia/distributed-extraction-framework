@@ -187,9 +187,9 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
    */
   private class ExtractionConfig extends Config(extractionConfigProps)
   {
-    override val dumpDir: File = null
-    override val ontologyFile: File = null
-    override val mappingsDir: File = null
+    override lazy val dumpDir: File = null
+    override lazy val ontologyFile: File = null
+    override lazy val mappingsDir: File = null
   }
 
 }
