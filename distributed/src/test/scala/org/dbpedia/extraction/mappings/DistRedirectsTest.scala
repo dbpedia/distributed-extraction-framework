@@ -60,7 +60,7 @@ class DistRedirectsTest extends FunSuite
     val sc = SparkUtils.getSparkContext(distConfig)
     // Generate RDD from the article source for DistRedirects to load from in parallel
     // Naively calls toArray on Seq, only for testing
-    val rdd = sc.parallelize(articleSource.toSeq, distConfig.sparkNumSlices)
+    val rdd = sc.parallelize(articleSource.toSeq, 8)
     (distConfig, articleSource, rdd, lang, date, distFinder)
   } catch{ case ex:Exception => ex.printStackTrace(); (null, null,null, null,null, null)}
 
