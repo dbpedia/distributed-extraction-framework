@@ -26,6 +26,11 @@ class MultipleTextOutputFormat[K, V] extends TextOutputFormat[K, V]
   {
     private val recordWriters = mutable.Map[String, RecordWriter[K, V]]()
 
+    /**
+     * Note: This method is not synchronized, keeping with the rest of the Hadoop code in this framework.
+     * When using this with Spark, set only one core per worker to ensure that only one thread accesses
+     * this method per JVM.
+     */
     override def write(key: K, value: V)
     {
       // Generate the path depending upon key-value pair

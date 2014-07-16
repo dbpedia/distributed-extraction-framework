@@ -9,19 +9,19 @@ import java.io.DataOutputStream
 import org.apache.hadoop.io.compress.CompressionCodec
 
 /**
-* OutputFormat implementation that writes Quads to respective datasets depending upon the key, after applying
-* a given Formatter. This class extends MultipleTextOutputFormat which allows it to write to multiple locations
-* (for multiple datasets) depending upon custom criteria.
-*
-* The output needs to be grouped by dataset such that each key is a Text representing the dataset to which
-* the Quads in the value belong to. Example key: article_categories
-*
-* @param langWikiCode Language wiki code of the input wiki dump
-* @param wikiNameSuffix Config.wikiName (eg. wiki)
-* @param date Wiki dump date in YYYYMMDD format
-* @param outputSuffix Output suffix corresponding to formatter (eg. tql)
-* @param formatter Formatter object used to render the Quad objects according to a specific format
-*/
+ * OutputFormat implementation that writes Quads to respective datasets depending upon the key, after applying
+ * a given Formatter. This class extends MultipleTextOutputFormat which allows it to write to multiple locations
+ * (for multiple datasets) depending upon custom criteria.
+ *
+ * The output needs to be grouped by dataset such that each key is a Text representing the dataset to which
+ * the Quads in the value belong to. Example key: article_categories
+ *
+ * @param langWikiCode Language wiki code of the input wiki dump
+ * @param wikiNameSuffix Config.wikiName (eg. wiki)
+ * @param date Wiki dump date in YYYYMMDD format
+ * @param outputSuffix Output suffix corresponding to formatter (eg. tql)
+ * @param formatter Formatter object used to render the Quad objects according to a specific format
+ */
 class DBpediaDatasetOutputFormat(langWikiCode: String,
                                  wikiNameSuffix: String,
                                  date: String,
@@ -94,26 +94,25 @@ class DBpediaDatasetOutputFormat(langWikiCode: String,
     lineWriter.write(nullKey, text)
 
     /**
-     * Note: using synchronization here is *probably* not strictly necessary, but without it, different sequences of quads
-     * may be interleaved, which is harder to read and makes certain parsing optimizations impossible.
+     * Note: This method is not synchronized, keeping with the rest of the Hadoop code in this framework.
+     * When using this with Spark, set only one core per worker to ensure that only one thread accesses
+     * this method per JVM.
      */
     override def write(key: Text, value: QuadSeqWritable) =
-      synchronized
+    {
+      for (quad <- value.get)
       {
-        for (quad <- value.get)
-        {
-          text.set(formatter.render(quad).dropRight(1)) // remove newline from rendered output
-          lineWriter.write(nullKey, text)
-        }
+        text.set(formatter.render(quad).dropRight(1)) // remove newline from rendered output
+        lineWriter.write(nullKey, text)
       }
+    }
 
     override def close(context: TaskAttemptContext) =
-      synchronized
-      {
-        text.set(formatter.footer.dropRight(1)) // remove newline from footer
-        lineWriter.write(nullKey, text)
-        lineWriter.close(context)
-      }
+    {
+      text.set(formatter.footer.dropRight(1)) // remove newline from footer
+      lineWriter.write(nullKey, text)
+      lineWriter.close(context)
+    }
   }
 
 }
