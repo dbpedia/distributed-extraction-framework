@@ -31,9 +31,6 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
   /** By default assume master is runnning locally; use 4 cores */
   val sparkMaster = distConfigProps.getProperty("spark-master", "local[4]")
 
-  /** Number of splits the initial RDD will be broken to - configure according to your cluster. Maybe total number of cores? */
-  val sparkNumSlices = distConfigProps.getProperty("spark-num-slices", "4").toInt
-
   /** Shows up on Spark Web UI */
   val sparkAppName = distConfigProps.getProperty("spark-appname", "dbpedia-distributed-extraction-framework")
 
