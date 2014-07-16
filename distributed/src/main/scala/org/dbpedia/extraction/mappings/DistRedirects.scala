@@ -53,19 +53,19 @@ object DistRedirects
     }
     catch
       {
-        case ex: Exception => logger.log(Level.INFO, "Will extract redirects from source for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
+        case ex: Exception => logger.log(Level.INFO, "Will extract redirects from source for " + lang.wikiCode + " wiki, could not load cache file '" + cache.getSchemeWithFileName + "': " + ex)
       }
 
     //Load redirects from RDD
     val redirects = loadFromRDD(rdd, lang)
 
     val dir = cache.getParent
-    if (!dir.exists && !dir.mkdirs()) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
+    if (!dir.exists && !dir.mkdirs()) throw new IOException("cache dir [" + dir.getSchemeWithFileName + "] does not exist and cannot be created")
     val output = new Output(new BufferedOutputStream(cache.outputStream()))
     try
     {
       DistIOUtils.getKryoInstance.writeClassAndObject(output, redirects.map)
-      logger.info(redirects.map.size + " redirects written to cache file " + cache)
+      logger.info(redirects.map.size + " redirects written to cache file " + cache.getSchemeWithFileName)
       redirects
     }
     finally
@@ -79,12 +79,12 @@ object DistRedirects
    */
   private def loadFromCache(cache: Path)(implicit hadoopConf: Configuration): Redirects =
   {
-    logger.info("Loading redirects from cache file " + cache)
+    logger.info("Loading redirects from cache file " + cache.getSchemeWithFileName)
     val input = new Input(new BufferedInputStream(cache.inputStream()))
     try
     {
       val redirects = new Redirects(DistIOUtils.getKryoInstance.readClassAndObject(input).asInstanceOf[Map[String, String]])
-      logger.info(redirects.map.size + " redirects loaded from cache file " + cache)
+      logger.info(redirects.map.size + " redirects loaded from cache file " + cache.getSchemeWithFileName)
       redirects
     }
     finally

@@ -80,17 +80,17 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     val articlesRDD: RDD[WikiPage] = try
     {
       if (!cache.exists)
-        throw new IOException("Cache file " + cache + " does not exist.")
-      logger.info("Loading articles from cache file " + cache)
+        throw new IOException("Cache file " + cache.getSchemeWithFileName + " does not exist.")
+      logger.info("Loading articles from cache file " + cache.getSchemeWithFileName)
       val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache)
-      logger.info("WikiPages loaded from cache file " + cache)
+      logger.info("WikiPages loaded from cache file " + cache.getSchemeWithFileName)
       loaded
     }
     catch
       {
         case ex: Exception =>
         {
-          logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
+          logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache.getSchemeWithFileName + "': " + ex)
 
           // Create RDD with WikiPageWritable elements.
           val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
@@ -109,7 +109,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
           if (config.cacheWikiPageRDD)
           {
             DistIOUtils.saveRDD(newRdd, cache)
-            logger.info("Parsed WikiPages written to cache file " + cache)
+            logger.info("Parsed WikiPages written to cache file " + cache.getSchemeWithFileName)
           }
 
           newRdd
