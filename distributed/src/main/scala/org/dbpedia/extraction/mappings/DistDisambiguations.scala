@@ -36,19 +36,19 @@ object DistDisambiguations
     }
     catch
       {
-        case ex : Exception => logger.log(Level.INFO, "Will extract disambiguations from source for "+lang.wikiCode+" wiki, could not load cache file '"+cache+"': "+ex)
+        case ex : Exception => logger.log(Level.INFO, "Will extract disambiguations from source for "+lang.wikiCode+" wiki, could not load cache file '"+cache.getSchemeWithFileName+"': "+ex)
       }
 
     val disambiguations = Disambiguations.loadFromFile(reader, lang)
 
     val dir = cache.getParent
-    if (!dir.exists && !dir.mkdirs()) throw new IOException("cache dir [" + dir + "] does not exist and cannot be created")
+    if (!dir.exists && !dir.mkdirs()) throw new IOException("cache dir [" + dir.getSchemeWithFileName + "] does not exist and cannot be created")
     val output = new Output(new BufferedOutputStream(cache.outputStream()))
 
     try
     {
       DistIOUtils.getKryoInstance.writeClassAndObject(output, disambiguations.set)
-      logger.info(disambiguations.set.size + " disambiguations written to cache file " + cache)
+      logger.info(disambiguations.set.size + " disambiguations written to cache file " + cache.getSchemeWithFileName)
       disambiguations
     }
     finally
@@ -62,12 +62,12 @@ object DistDisambiguations
    */
   private def loadFromCache(cache : Path)(implicit hadoopConf: Configuration) : Disambiguations =
   {
-    logger.info("Loading disambiguations from cache file " + cache)
+    logger.info("Loading disambiguations from cache file " + cache.getSchemeWithFileName)
     val input = new Input(new BufferedInputStream(cache.inputStream()))
     try
     {
       val disambiguations = new Disambiguations(DistIOUtils.getKryoInstance.readClassAndObject(input).asInstanceOf[Set[Long]])
-      logger.info(disambiguations.set.size + " disambiguations loaded from cache file " + cache)
+      logger.info(disambiguations.set.size + " disambiguations loaded from cache file " + cache.getSchemeWithFileName)
       disambiguations
     }
     finally
