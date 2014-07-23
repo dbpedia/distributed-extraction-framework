@@ -2,7 +2,7 @@
 
 ###
 # This script sets up a Spark cluster on Google Compute Engine
-# The original script and readme was modified from this repo https://github.com/sigmoidanalytics/spark_gce
+# sigmoidanalytics.com
 ###
 
 from __future__ import with_statement
@@ -362,7 +362,10 @@ def setup_spark(master_nodes,slave_nodes):
 
     print '[ Downloading Binaries ]'
 
+
     master = master_nodes[0]
+
+    setup_maven(master_nodes)
 
     ssh_command(master,"rm -fr engine")
     ssh_command(master,"mkdir engine")
@@ -375,14 +378,16 @@ def setup_spark(master_nodes,slave_nodes):
     print '[ Updating Spark Configurations ]'
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;cp spark-env.sh.template spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SCALA_HOME=\"/home/`whoami`/engine/scala\"' >> spark-env.sh")
+    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SCALA_HOME=\"/home/`whoami`/engine/scala\"' >> .bashrc")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_MEM=2454m' >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo \"SPARK_JAVA_OPTS+=\\\" -Dspark.local.dir=/mnt/spark \\\"\" >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_JAVA_OPTS' >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_MASTER_IP=PUT_MASTER_IP_HERE' >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export MASTER=spark://PUT_MASTER_IP_HERE:7077' >> spark-env.sh")
-    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.55.x86_64' >> spark-env.sh")
+    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.65.x86_64' >> spark-env.sh")
+    #ssh_command(master,"cd engine/spark-0.9.1-bin-hadoop2;MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" /home/`whoami`/engine/apache-maven-3.0.5/mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package")
 
-
+    ssh_command(master,"cd engine/spark-0.9.1-bin-hadoop2/conf/;rm slaves")
     for slave in slave_nodes:
         ssh_command(master,"echo " + slave + " >> engine/spark-0.9.1-bin-hadoop2/conf/slaves")
 
@@ -405,7 +410,6 @@ def setup_spark(master_nodes,slave_nodes):
     #setup_shark(master_nodes,slave_nodes)
 
     setup_hadoop(master_nodes,slave_nodes)
-    setup_maven(master_nodes)
 
     print "\n\nSpark Master Started, WebUI available at : http://" + master + ":8080"
 
@@ -433,7 +437,7 @@ def setup_hadoop(master_nodes,slave_nodes):
 
     #Configure .bashrc
     ssh_command(master,"echo '#HADOOP_CONFS' >> .bashrc")
-    ssh_command(master,"echo 'export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.55.x86_64' >> .bashrc")
+    ssh_command(master,"echo 'export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.65.x86_64' >> .bashrc")
     ssh_command(master,"echo 'export HADOOP_INSTALL=/home/`whoami`/engine/hadoop-2.2.0' >> .bashrc")
     ssh_command(master,"echo 'export PATH=\$PATH:\$JAVA_HOME/bin:\$HADOOP_INSTALL/bin' >> .bashrc")#FIXME removed $PATH prefix because of it picking clients path
     ssh_command(master,"echo 'export PATH=\$PATH:\$HADOOP_INSTALL/sbin' >> .bashrc")
@@ -446,11 +450,11 @@ def setup_hadoop(master_nodes,slave_nodes):
     ssh_command(master,"echo 'export PATH=\$PATH:\$HADOOP_INSTALL/bin' >> .bashrc")
 
     #Remove *-site.xmls
-    ssh_command(master,"cd engine/hadoop-2.2.0;rm etc/hadoop/core-site.xml")
+    ssh_command(master,"cd engine/hadoop-2.2.0;rm etc/hadoop/core-site.xml")#TODO revisit
     ssh_command(master,"cd engine/hadoop-2.2.0;rm etc/hadoop/yarn-site.xml")
     ssh_command(master,"cd engine/hadoop-2.2.0;rm etc/hadoop/hdfs-site.xml")
-    #Download Our Confs
-    ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/configs/core-site.xml")#TODO update these urls
+    #Download Our Confs #TODO revisit
+    ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/configs/core-site.xml")
     ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/configs/hdfs-site.xml")
     ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/configs/mapred-site.xml")
     ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/configs/yarn-site.xml")
@@ -464,7 +468,7 @@ def setup_hadoop(master_nodes,slave_nodes):
     ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;rm slaves")
     for slave in slave_nodes:
         ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;echo " + slave + " >> slaves")
-        ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;echo -e '\n'" + " >> slaves")
+        #ssh_command(master,"cd engine/hadoop-2.2.0/etc/hadoop/;echo -e '\n'" + " >> slaves")
 
     print '[ Rsyncing with Slaves ]'
     #Rsync everything
@@ -516,12 +520,12 @@ def real_main():
 
 
 def main():
-  try:
-    real_main()
-  except Exception as e:
-    print >> stderr, "\nError:\n", e
-    
+	try:
+		real_main()
+	except Exception as e:
+		print >> stderr, "\nError:\n", e
+
 
 if __name__ == "__main__":
-  
-  main()
+
+    main()
