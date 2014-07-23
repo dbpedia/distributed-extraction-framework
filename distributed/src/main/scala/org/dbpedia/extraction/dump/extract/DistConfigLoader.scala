@@ -34,6 +34,7 @@ import org.dbpedia.extraction.spark.io.input.DBpediaWikiPageInputFormat
 class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 {
   private val logger = Logger.getLogger(classOf[DistConfigLoader].getName)
+  private val CONFIG_PROPERTIES = "config.properties"
 
   /**
    * Loads the configuration and creates extraction jobs for all configured languages.
@@ -63,13 +64,17 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     val job = Job.getInstance(hadoopConfiguration)
     for (file <- files(config.source, finder, date))
       FileInputFormat.addInputPath(job, file)
+    val updatedConf = job.getConfiguration
 
     // Add the extraction configuration file to distributed cache.
     // It will be needed in DBpediaCompositeOutputFormat for getting the Formatters.
-    job.addCacheFile(config.extractionConfigFile)
+    val configPropertiesDCPath = finder.wikiDir.resolve(CONFIG_PROPERTIES) // Path where to the copy config properties file
+    val fs = configPropertiesDCPath.getFileSystem(updatedConf)
+    fs.copyFromLocalFile(false, true, new Path(config.extractionConfigFile), configPropertiesDCPath) // Copy local file to Hadoop file system
+    job.addCacheFile(configPropertiesDCPath.toUri) // Add to distributed cache
 
-    val updatedConf = job.getConfiguration
     // Setup config variables needed by DBpediaWikiPageInputFormat and DBpediaCompositeOutputFormat.
+    updatedConf.set("dbpedia.config.properties", configPropertiesDCPath.toString)
     updatedConf.set("dbpedia.wiki.name", config.wikiName)
     updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
     updatedConf.set("dbpedia.wiki.date", date)

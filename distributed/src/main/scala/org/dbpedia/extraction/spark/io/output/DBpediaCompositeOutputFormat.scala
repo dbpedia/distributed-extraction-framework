@@ -7,6 +7,9 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import scala.collection.mutable
 import org.dbpedia.extraction.destinations.formatters.UriPolicy
 import org.dbpedia.extraction.util.ConfigUtils
+import org.apache.commons.io.FilenameUtils
+import java.io.File
+import org.apache.hadoop.fs.{Path, FileSystem}
 
 /**
  * OutputFormat implementation that uses the configured Formatters to write Quads to respective datasets
@@ -21,8 +24,10 @@ import org.dbpedia.extraction.util.ConfigUtils
  * dbpedia.wiki.date - Wiki dump date in YYYYMMDD format
  * dbpedia.output.overwrite - Boolean, if set to true, output files will be overwritten if they already exist,
  * or else an IOException will be thrown (which is also the default behaviour) - this is actually for MultipleTextOutputFormat
+ * dbpedia.config.properties - HDFS Path at which the extraction config properties file is stored
  *
- * 2. The extraction config properties file needs to be added to the distributed cache.
+ * 2. The extraction config properties file needs to be added to the distributed cache - the HDFS location should be
+ * configured using dbpedia.config.properties.
  *
  * 3. Also, the output needs to be grouped by dataset such that each key is a Text representing the dataset
  * to which the Quads in the value belong to. Example key: article_categories
@@ -36,6 +41,7 @@ import org.dbpedia.extraction.util.ConfigUtils
  */
 class DBpediaCompositeOutputFormat extends TextOutputFormat[Text, QuadSeqWritable]
 {
+  private val CONFIG_PROPERTIES = "dbpedia.config.properties"
   private val WIKI = "dbpedia.wiki.name"
   private val LANGUAGE = "dbpedia.wiki.language.wikicode"
   private val DATE = "dbpedia.wiki.date"
@@ -44,13 +50,22 @@ class DBpediaCompositeOutputFormat extends TextOutputFormat[Text, QuadSeqWritabl
   {
     private val recordWriters = mutable.Map[String, RecordWriter[Text, QuadSeqWritable]]()
     private val conf = context.getConfiguration
+    private val configPropertiesDCPath = conf.get(CONFIG_PROPERTIES)
     private val wikiName = conf.get(WIKI)
     private val langCode = conf.get(LANGUAGE)
     private val date = conf.get(DATE)
+    private val localConfigPropertiesFile = new Path("./config.properties")
     private val formatters =
     {
       // Deserialize the config Properties object to get the Formatters
-      val config = ConfigUtils.loadConfig(context.getCacheFiles()(0).getPath, "UTF-8")
+      println(context.getCacheFiles.mkString("\n"))
+      val configProperties = context.getCacheFiles.find(_.getPath == configPropertiesDCPath).get
+
+      val fs = FileSystem.get(conf)
+      // copy config file from distributed cache to raw local FS
+      fs.copyToLocalFile(false, new Path(configProperties), localConfigPropertiesFile, true)
+
+      val config = ConfigUtils.loadConfig(localConfigPropertiesFile.toString, "UTF-8")
       UriPolicy.parseFormats(config, "uri-policy", "format")
     }
 
