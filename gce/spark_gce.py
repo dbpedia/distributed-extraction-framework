@@ -26,18 +26,22 @@ import threading
 
 ###
 # Make sure gcutil is installed and authenticated 
-# Usage: spark_gce.py <project> <no-slaves> <slave-type> <master-type> <identity-file> <zone> <cluster-name>
-# Usage: spark_gce.py <project> <cluster-name> destroy
+# Usage: spark_gce.py <project> <no-slaves> <slave-type> <master-type> <identity-file> <zone> <cluster-name> <spark-mem> [<local-log-dir>]'
+# Usage: spark_gce.py <project> <cluster-name> [<identity-file> <local-log-dir>] destroy'
 ###
 
 identity_file = ""
-slave_no = ""
+slave_no = 0
 slave_type = ""
 master_type = ""
 zone = ""
 cluster_name = ""
 username = ""
 project = ""
+spark_mem = ""
+nmon_log_dir = ""
+worker_cores = 0
+worker_instances = 0
 
 
 def read_args():
@@ -50,8 +54,13 @@ def read_args():
     global cluster_name
     global username
     global project
+    global spark_mem
+    global nmon_log_dir
+    global worker_cores
+    global worker_instances
 
-    if len(sys.argv) == 8:
+    argc = len(sys.argv)
+    if argc >= 10 and argc <= 12:
         project = sys.argv[1]
         slave_no = int(sys.argv[2])
         slave_type = sys.argv[3]
@@ -59,14 +68,28 @@ def read_args():
         identity_file = sys.argv[5]
         zone = sys.argv[6]
         cluster_name = sys.argv[7]
+        spark_mem = sys.argv[8]
+        worker_instances = int(sys.argv[9])
+        worker_cores = int(sys.argv[10]) if argc >= 11 else 1 # default number of cores per worker = 0
+        if argc == 12: nmon_log_dir = sys.argv[11]
         username = getpass.getuser()
 
-    elif len(sys.argv) == 4 and sys.argv[3].lower() == "destroy":
+    elif argc >= 4 and sys.argv[argc - 1].lower() == "destroy":
 
         print 'Destroying cluster ' + sys.argv[2]
 
         project = sys.argv[1]
         cluster_name = sys.argv[2]
+        if argc == 6:
+            identity_file = sys.argv[3]
+            nmon_log_dir = sys.argv[4]
+            username = getpass.getuser()
+        
+        if nmon_log_dir != "":
+            print 'Downloading all nmon logs to ' + nmon_log_dir
+            (master_nodes, slave_nodes) = get_cluster_ips()
+            aggregate_nmon(master_nodes,slave_nodes)
+        
         try:
 
             command = 'gcutil --project=' + project + ' listinstances --columns=name,external-ip --format=csv'
@@ -96,8 +119,8 @@ def read_args():
         sys.exit(0)
 
     else:
-        print '# Usage: spark_gce.py <project> <no-slaves> <slave-type> <master-type> <identity-file> <zone> <cluster-name>'
-        print '# Usage: spark_gce.py <project> <cluster-name> destroy'
+        print 'Usage: spark_gce.py <project> <no-slaves> <slave-type> <master-type> <identity-file> <zone> <cluster-name> <spark-mem> <worker_instances> [<worker_cores>] [<local-log-dir>]'
+        print 'Usage: spark_gce.py <project> <cluster-name> [<identity-file> <local-log-dir>] destroy'
         sys.exit(0)
 
 
@@ -284,6 +307,10 @@ def ssh_command(host,command):
 
     #print "ssh -i " + identity_file + " -o 'UserKnownHostsFile=/dev/null' -o 'CheckHostIP=no' -o 'StrictHostKeyChecking no' "+ username + "@" + host + " '" + command + "'"
     commands.getstatusoutput("ssh -i " + identity_file + " -o 'UserKnownHostsFile=/dev/null' -o 'CheckHostIP=no' -o 'StrictHostKeyChecking no' "+ username + "@" + host + " '" + command + "'" )
+    
+def scp_command(host,remote_path,local_path):
+    print "scp -i " + identity_file + " -o 'UserKnownHostsFile=/dev/null' -o 'CheckHostIP=no' -o 'StrictHostKeyChecking no' "+ username + "@" + host + ":" + remote_path + " " + local_path
+    commands.getstatusoutput("scp -i " + identity_file + " -o 'UserKnownHostsFile=/dev/null' -o 'CheckHostIP=no' -o 'StrictHostKeyChecking no' "+ username + "@" + host + ":" + remote_path + " " + local_path)
 
 
 def deploy_keys(master_nodes,slave_nodes):
@@ -307,8 +334,6 @@ def deploy_keys(master_nodes,slave_nodes):
         ssh_command(master,"ssh-keyscan -H " + slave + " >> ~/.ssh/known_hosts")
         ssh_command(slave,"ssh-keyscan -H $(cat /etc/hosts | grep $(/sbin/ifconfig eth0 | grep \"inet addr:\" | cut -d: -f2 | cut -d\" \" -f1) | cut -d\" \" -f2) >> ~/.ssh/known_hosts")
         ssh_command(slave,"ssh-keyscan -H $(/sbin/ifconfig eth0 | grep \"inet addr:\" | cut -d: -f2 | cut -d\" \" -f1) >> ~/.ssh/known_hosts")
-
-
 
 def attach_drive(master_nodes,slave_nodes):
 
@@ -359,27 +384,30 @@ def attach_drive(master_nodes,slave_nodes):
     print '[ All volumns mounted, will be available at /mnt ]'
 
 def setup_spark(master_nodes,slave_nodes):
-
     print '[ Downloading Binaries ]'
-
 
     master = master_nodes[0]
 
-    setup_maven(master_nodes)
-
     ssh_command(master,"rm -fr engine")
     ssh_command(master,"mkdir engine")
+
+    setup_maven(master_nodes)
+    
+    if nmon_log_dir != "": setup_nmon(master_nodes,slave_nodes)
+    
     ssh_command(master,"cd engine;wget http://apache.mesi.com.ar/spark/spark-0.9.1/spark-0.9.1-bin-hadoop2.tgz")
     ssh_command(master,"cd engine;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/scala.tgz")
     ssh_command(master,"cd engine;tar zxf spark-0.9.1-bin-hadoop2.tgz;rm spark-0.9.1-bin-hadoop2.tgz")
     ssh_command(master,"cd engine;tar zxf scala.tgz;rm scala.tgz")
-
+    ssh_command(master,"cd engine/spark-0.9.1-bin-hadoop2;SCALA_HOME=\"/home/`whoami`/engine/scala\" MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package")
 
     print '[ Updating Spark Configurations ]'
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;cp spark-env.sh.template spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SCALA_HOME=\"/home/`whoami`/engine/scala\"' >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SCALA_HOME=\"/home/`whoami`/engine/scala\"' >> .bashrc")
-    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_MEM=2454m' >> spark-env.sh")
+    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_MEM=%s' >> spark-env.sh" % spark_mem)
+    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_WORKER_CORES=%d' >> spark-env.sh" % worker_cores)
+    ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_WORKER_INSTANCES=%d' >> spark-env.sh" % worker_instances)
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo \"SPARK_JAVA_OPTS+=\\\" -Dspark.local.dir=/mnt/spark \\\"\" >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_JAVA_OPTS' >> spark-env.sh")
     ssh_command(master,"cd engine;cd spark-0.9.1-bin-hadoop2/conf;echo 'export SPARK_MASTER_IP=PUT_MASTER_IP_HERE' >> spark-env.sh")
@@ -412,6 +440,18 @@ def setup_spark(master_nodes,slave_nodes):
     setup_hadoop(master_nodes,slave_nodes)
 
     print "\n\nSpark Master Started, WebUI available at : http://" + master + ":8080"
+
+def setup_nmon(master_nodes,slave_nodes):
+    for host in slave_nodes + master_nodes:
+        print "[ Setting up nmon on %s ]" % host
+        ssh_command(host, "cd engine;mkdir nmon;cd nmon;wget -O nmon http://sourceforge.net/projects/nmon/files/nmon_x86_64_centos6;chmod a+x nmon;./nmon -s10 -f")
+
+def aggregate_nmon(master_nodes,slave_nodes):
+    for host in slave_nodes + master_nodes:
+        log_file = os.path.join(nmon_log_dir, host + ".nmon")
+        print "[ Saving nmon log from %s to %s ]" % (host, log_file)
+        ssh_command(host, "killall nmon")
+        scp_command(host, "/home/" + username + "/engine/nmon/*.nmon", log_file)
 
 def setup_maven(master_nodes):
 
