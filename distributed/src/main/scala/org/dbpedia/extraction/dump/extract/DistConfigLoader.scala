@@ -64,21 +64,22 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     val job = Job.getInstance(hadoopConfiguration)
     for (file <- files(config.source, finder, date))
       FileInputFormat.addInputPath(job, file)
-    val updatedConf = job.getConfiguration
+    hadoopConfiguration = job.getConfiguration // update Configuration
 
     // Add the extraction configuration file to distributed cache.
     // It will be needed in DBpediaCompositeOutputFormat for getting the Formatters.
     val configPropertiesDCPath = finder.wikiDir.resolve(CONFIG_PROPERTIES) // Path where to the copy config properties file
-    val fs = configPropertiesDCPath.getFileSystem(updatedConf)
+    val fs = configPropertiesDCPath.getFileSystem(hadoopConfiguration)
     fs.copyFromLocalFile(false, true, new Path(config.extractionConfigFile), configPropertiesDCPath) // Copy local file to Hadoop file system
     job.addCacheFile(configPropertiesDCPath.toUri) // Add to distributed cache
 
     // Setup config variables needed by DBpediaWikiPageInputFormat and DBpediaCompositeOutputFormat.
-    updatedConf.set("dbpedia.config.properties", configPropertiesDCPath.toString)
-    updatedConf.set("dbpedia.wiki.name", config.wikiName)
-    updatedConf.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
-    updatedConf.set("dbpedia.wiki.date", date)
-    updatedConf.setBoolean("dbpedia.output.overwrite", config.overwriteOutput)
+    hadoopConfiguration.set("dbpedia.config.properties", configPropertiesDCPath.toString)
+    hadoopConfiguration.set("dbpedia.wiki.name", config.wikiName)
+    hadoopConfiguration.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
+    hadoopConfiguration.set("dbpedia.wiki.date", date)
+    hadoopConfiguration.set("mapreduce.input.fileinputformat.split.maxsize", (1024*1024*8).toString)
+    hadoopConfiguration.setBoolean("dbpedia.output.overwrite", config.overwriteOutput)
 
     // Getting the WikiPages from local on-disk cache saves processing time.
     val cache = finder.file(date, "articles-rdd")
@@ -99,7 +100,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 
           // Create RDD with WikiPageWritable elements.
           val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
-            sparkContext.newAPIHadoopRDD(updatedConf, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
+            sparkContext.newAPIHadoopRDD(hadoopConfiguration, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
 
           // Unwrap WikiPages and filter unnecessary pages
           val newRdd = rawArticlesRDD.map(_._2.get).filter
@@ -231,13 +232,13 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
       new Path(outputPath, s"${finder.wikiName}-$date-${dataset.name.replace('_', '-')}.$suffix").mkdirs()
     }
 
-    val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, updatedConf), finder.file(date, Extraction.Complete), false)
+    val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, hadoopConfiguration), finder.file(date, Extraction.Complete), false)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
     new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
-  implicit def hadoopConfiguration: Configuration = config.hadoopConf
+  implicit var hadoopConfiguration: Configuration = config.hadoopConf
 
   private def writer[T <% FileLike[_]](file: T): () => Writer =
   {
