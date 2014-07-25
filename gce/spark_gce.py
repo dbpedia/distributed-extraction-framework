@@ -23,6 +23,7 @@ from sys import stderr
 import shlex
 import getpass
 import threading
+import traceback
 
 ###
 # Make sure gcutil is installed and authenticated 
@@ -42,6 +43,7 @@ spark_mem = ""
 nmon_log_dir = ""
 worker_cores = 0
 worker_instances = 0
+force_reformat = True
 
 
 def read_args():
@@ -340,37 +342,48 @@ def attach_drive(master_nodes,slave_nodes):
     print '[ Adding new 100GB drive on Master ]'
     master = master_nodes[0]
 
-    command='gcutil --service_version="v1" --project="' + project + '" adddisk "' + cluster_name + '-m-disk" --size_gb="100" --zone="' + zone + '"'
+    # get list of disks that already exist
+    command = 'gcutil --project=' + project + ' listdisks --columns=name --format=csv'
+    disks = subprocess.check_output(command, shell=True).split("\n")
+
+    disk_name = cluster_name + '-m-disk'
+    if disk_name not in disks: # add disk if it doesn't exist already
+        command='gcutil --service_version="v1" --project="' + project + '" adddisk "' + disk_name + '" --size_gb="100" --zone="' + zone + '"'
+        command = shlex.split(command)
+        subprocess.call(command)
+
+    command = 'gcutil --project='+ project +' attachdisk --zone=' + zone +' --disk=' + disk_name + ' ' + cluster_name + '-master'
     command = shlex.split(command)
     subprocess.call(command)
-
-    command = 'gcutil --project='+ project +' attachdisk --zone=' + zone +' --disk=' + cluster_name + '-m-disk ' + cluster_name + '-master'
-    command = shlex.split(command)
-    subprocess.call(command)
-
-    master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo mkfs.ext3 /dev/disk/by-id/google-"+ cluster_name + "-m-disk " + " -F < /dev/null"))
-    master_thread.start()
+    master_thread = None
+    if force_reformat is True or disk_name not in disks: # format disk if it is new
+        master_thread = threading.Thread(target=ssh_thread, args=(master,"sudo mkfs.ext3 /dev/disk/by-id/google-"+ disk_name + " -F < /dev/null"))
+        master_thread.start()
 
     print '[ Adding new 100GB drive on Slaves ]'
 
     i = 1
+    slave_thread = None
     for slave in slave_nodes:
 
         master = slave
+        disk_name = cluster_name + '-s' + str(i) + '-disk'
+        if disk_name not in disks: # add disk if it doesn't exist already
+            command='gcutil --service_version="v1" --project="' + project + '" adddisk "' + disk_name + '" --size_gb="100" --zone="' + zone + '"'
+            command = shlex.split(command)
+            subprocess.call(command)
 
-        command='gcutil --service_version="v1" --project="' + project + '" adddisk "' + cluster_name + '-s' + str(i) + '-disk" --size_gb="100" --zone="' + zone + '"'
+        command = 'gcutil --project='+ project +' attachdisk --zone=' + zone +' --disk=' + disk_name + ' ' + cluster_name + '-slave' +  str(i)
         command = shlex.split(command)
         subprocess.call(command)
 
-        command = 'gcutil --project='+ project +' attachdisk --zone=' + zone +' --disk=' + cluster_name + '-s' + str(i) + '-disk ' + cluster_name + '-slave' +  str(i)
-        command = shlex.split(command)
-        subprocess.call(command)
-        slave_thread = threading.Thread(target=ssh_thread, args=(slave,"sudo mkfs.ext3 /dev/disk/by-id/google-" + cluster_name + "-s" + str(i) + "-disk -F < /dev/null"))
-        slave_thread.start()
+        if force_reformat is True or disk_name not in disks: # format disk if it is new
+            slave_thread = threading.Thread(target=ssh_thread, args=(slave,"sudo mkfs.ext3 /dev/disk/by-id/google-" + disk_name + " -F < /dev/null"))
+            slave_thread.start()
         i=i+1
 
-    slave_thread.join()
-    master_thread.join()
+    if slave_thread != None: slave_thread.join()
+    if master_thread != None: master_thread.join()
 
     print '[ Mounting new Volume ]'
     enable_sudo(master_nodes[0],"sudo mount /dev/disk/by-id/google-"+ cluster_name + "-m-disk /mnt")
@@ -393,12 +406,14 @@ def setup_spark(master_nodes,slave_nodes):
 
     setup_maven(master_nodes)
     
-    if nmon_log_dir != "": setup_nmon(master_nodes,slave_nodes)
+    #if nmon_log_dir != "": setup_nmon(master_nodes,slave_nodes)
     
     ssh_command(master,"cd engine;wget http://apache.mesi.com.ar/spark/spark-0.9.1/spark-0.9.1-bin-hadoop2.tgz")
     ssh_command(master,"cd engine;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/scala.tgz")
     ssh_command(master,"cd engine;tar zxf spark-0.9.1-bin-hadoop2.tgz;rm spark-0.9.1-bin-hadoop2.tgz")
     ssh_command(master,"cd engine;tar zxf scala.tgz;rm scala.tgz")
+
+    print '[ Building Spark with Hadoop 2.2.0 ]'
     ssh_command(master,"cd engine/spark-0.9.1-bin-hadoop2;SCALA_HOME=\"/home/`whoami`/engine/scala\" MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package")
 
     print '[ Updating Spark Configurations ]'
@@ -433,9 +448,6 @@ def setup_spark(master_nodes,slave_nodes):
     ssh_command(master,"mkdir /mnt/spark")
     print '[ Starting Spark Cluster ]'
     ssh_command(master,"engine/spark-0.9.1-bin-hadoop2/sbin/start-all.sh")
-
-
-    #setup_shark(master_nodes,slave_nodes)
 
     setup_hadoop(master_nodes,slave_nodes)
 
@@ -513,6 +525,7 @@ def setup_hadoop(master_nodes,slave_nodes):
     print '[ Rsyncing with Slaves ]'
     #Rsync everything
     for slave in slave_nodes:
+        print "Rsyncing to " + slave
         ssh_command(master,"rsync -za /home/" + username + "/engine " + slave + ":")
         ssh_command(slave,"mkdir -p /mnt/hadoop/hdfs/namenode;mkdir -p /mnt/hadoop/hdfs/datanode")
         ssh_command(master,"rsync -za /home/" + username + "/.bashrc " + slave + ":")
@@ -558,13 +571,12 @@ def real_main():
 
 
 
-
 def main():
-	try:
-		real_main()
-	except Exception as e:
-		print >> stderr, "\nError:\n", e
-
+    try:
+        real_main()
+    except Exception as e:
+        print >> stderr, "\nError:\n", e
+        traceback.print_exc()
 
 if __name__ == "__main__":
 
