@@ -1,12 +1,14 @@
 package org.dbpedia.extraction.spark.serialize
 
+import scala.reflect.ClassTag
+
 /**
  * A wrapper around some unserializable objects that make them both Java
  * serializable. Internally, Kryo is used for serialization.
  *
  * Use KryoSerializationWrapper(value) to create a wrapper.
  */
-class KryoSerializationWrapper[T] extends Serializable
+class KryoSerializationWrapper[T: ClassTag] extends Serializable
 {
 
   @transient var value: T = _
@@ -43,7 +45,7 @@ class KryoSerializationWrapper[T] extends Serializable
 
 object KryoSerializationWrapper
 {
-  def apply[T](value: T): KryoSerializationWrapper[T] =
+  def apply[T: ClassTag](value: T): KryoSerializationWrapper[T] =
   {
     val wrapper = new KryoSerializationWrapper[T]
     wrapper.value = value

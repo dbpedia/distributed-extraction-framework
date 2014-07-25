@@ -17,13 +17,12 @@ echo "Running distributed extraction"
 echo "===================================================================="
 ./run extraction $CONFIG_FILE $SPARK_CONF_FILE
 mkdir /tmp/dbpedia-test-par-extraction
-cp `grep base-dir $CONFIG_FILE | sed -ne 's/^base-dir=//p'`/*wiki/*/*wiki*.gz /tmp/dbpedia-test-par-extraction
+cp -rf `grep base-dir $CONFIG_FILE | sed -ne 's/^base-dir=//p'`/*wiki/*/*wiki*.gz /tmp/dbpedia-test-par-extraction/
 
 echo "===================================================================="
 echo "Computing diffs:"
 echo "===================================================================="
-diffs=`diff <(gzip -dc /tmp/dbpedia-test-seq-extraction/*.gz | grep -v "^#" | sort) <(gzip -dc /tmp/dbpedia-test-par-extraction/*.gz | grep -v "completed\|started" | sort)`
-
+diffs=`diff <(gzip -dc /tmp/dbpedia-test-seq-extraction/*.gz | grep -v "^#" | sort) <(gzip -dc /tmp/dbpedia-test-par-extraction/*wiki*.gz/part*.gz | grep -v "^#" | sort)`
 if [ -z "$diffs" ]; then
 	echo "Outputs match!"
 else

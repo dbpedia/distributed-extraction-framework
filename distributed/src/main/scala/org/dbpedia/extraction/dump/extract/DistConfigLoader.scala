@@ -1,51 +1,44 @@
 package org.dbpedia.extraction.dump.extract
 
-import org.dbpedia.extraction.destinations.CompositeDestination
-import org.dbpedia.extraction.destinations.DatasetDestination
-import org.dbpedia.extraction.destinations.DeduplicatingDestination
-import org.dbpedia.extraction.destinations.Destination
-import org.dbpedia.extraction.destinations.MarkerDestination
-import org.dbpedia.extraction.destinations.WriterDestination
-import org.dbpedia.extraction.mappings.CompositeParseExtractor
-import org.dbpedia.extraction.mappings.Disambiguations
-import org.dbpedia.extraction.mappings.Extractor
-import org.dbpedia.extraction.mappings.Mappings
-import org.dbpedia.extraction.mappings.MappingsLoader
-import org.dbpedia.extraction.mappings.Redirects
-import org.dbpedia.extraction.mappings.RootExtractor
+import org.dbpedia.extraction.destinations._
+import org.dbpedia.extraction.mappings._
 import org.dbpedia.extraction.ontology.io.OntologyReader
-import org.dbpedia.extraction.sources.{WikiPage, XMLSource, WikiSource}
+import org.dbpedia.extraction.sources.{Source, WikiPage, XMLSource, WikiSource}
 import org.dbpedia.extraction.util._
-import org.dbpedia.extraction.dump.download.Download
-import org.dbpedia.extraction.util.RichFile.wrapFile
+import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.dbpedia.extraction.wikiparser.Namespace
-import scala.collection.mutable.{ArrayBuffer, HashMap}
 import java.io._
 import java.net.URL
 import java.util.logging.{Level, Logger}
-import org.apache.spark.{SparkContext, SparkConf}
-import org.dbpedia.extraction.mappings.DistRedirects
+import org.apache.spark.rdd.RDD
+import org.dbpedia.extraction.dump.download.Download
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.io.LongWritable
+import org.dbpedia.extraction.spark.io.WikiPageWritable
+import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
+import org.apache.hadoop.fs.Path
+import org.apache.spark.SparkContext
+import org.dbpedia.extraction.spark.io.input.DBpediaWikiPageInputFormat
 
 /**
  * Loads the dump extraction configuration.
  *
  * This class configures Spark and sets up the extractors to run using Spark
  *
- * TODO: clean up. The relations between the objects, classes and methods have become a bit chaotic.
- * There is no clean separation of concerns.
- *
  * TODO: get rid of all config file parsers, use Spring
+ * TODO: Inherit ConfigLoader methods and get rid of redundant code
+ *
+ * @param config DistConfig
  */
-class DistConfigLoader(config: Config)
+class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
 {
-  private val logger = Logger.getLogger(classOf[ConfigLoader].getName)
-
-  private val numSlices = 4 //TODO: Take from config. Default should be 4.
+  private val logger = Logger.getLogger(classOf[DistConfigLoader].getName)
+  private val CONFIG_PROPERTIES = "config.properties"
 
   /**
    * Loads the configuration and creates extraction jobs for all configured languages.
    *
-   * @param configFile The configuration file
    * @return Non-strict Traversable over all configured extraction jobs i.e. an extractions job will not be created until it is explicitly requested.
    */
   def getExtractionJobs(): Traversable[DistExtractionJob] =
@@ -56,16 +49,133 @@ class DistConfigLoader(config: Config)
   }
 
   /**
-   * Creates ab extraction job for a specific language.
+   * Creates an extraction job for a specific language.
    */
-  private def createExtractionJob(lang: Language, extractorClasses: List[Class[_ <: Extractor[_]]]): DistExtractionJob =
+  private def createExtractionJob(lang: Language, extractorClasses: Seq[Class[_ <: Extractor[_]]]): DistExtractionJob =
   {
-    val finder = new Finder[File](config.dumpDir, lang, config.wikiName)
+    val dumpDir = config.dumpDir.get
 
+    // Finder[Path] works with Hadoop's FileSystem class - operates on HDFS, or the local file system depending
+    // upon whether we are running in local mode or distributed/cluster mode.
+    val finder = new Finder[Path](dumpDir, lang, config.wikiName)
     val date = latestDate(finder)
 
-    //Extraction Context
-    val context = new DumpExtractionContext
+    // Add input sources
+    val job = Job.getInstance(hadoopConfiguration)
+    for (file <- files(config.source, finder, date))
+      FileInputFormat.addInputPath(job, file)
+    hadoopConfiguration = job.getConfiguration // update Configuration
+
+    // Add the extraction configuration file to distributed cache.
+    // It will be needed in DBpediaCompositeOutputFormat for getting the Formatters.
+    val configPropertiesDCPath = finder.wikiDir.resolve(CONFIG_PROPERTIES) // Path where to the copy config properties file
+    val fs = configPropertiesDCPath.getFileSystem(hadoopConfiguration)
+    fs.copyFromLocalFile(false, true, new Path(config.extractionConfigFile), configPropertiesDCPath) // Copy local file to Hadoop file system
+    job.addCacheFile(configPropertiesDCPath.toUri) // Add to distributed cache
+
+    // Setup config variables needed by DBpediaWikiPageInputFormat and DBpediaCompositeOutputFormat.
+    hadoopConfiguration.set("dbpedia.config.properties", configPropertiesDCPath.toString)
+    hadoopConfiguration.set("dbpedia.wiki.name", config.wikiName)
+    hadoopConfiguration.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
+    hadoopConfiguration.set("dbpedia.wiki.date", date)
+    hadoopConfiguration.set("mapreduce.input.fileinputformat.split.maxsize", (1024*1024*8).toString)
+    hadoopConfiguration.setBoolean("dbpedia.output.overwrite", config.overwriteOutput)
+
+    // Getting the WikiPages from local on-disk cache saves processing time.
+    val cache = finder.file(date, "articles-rdd")
+    val articlesRDD: RDD[WikiPage] = try
+    {
+      if (!cache.exists)
+        throw new IOException("Cache file " + cache.getSchemeWithFileName + " does not exist.")
+      logger.info("Loading articles from cache file " + cache.getSchemeWithFileName)
+      val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache)
+      logger.info("WikiPages loaded from cache file " + cache.getSchemeWithFileName)
+      loaded
+    }
+    catch
+      {
+        case ex: Exception =>
+        {
+          logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache.getSchemeWithFileName + "': " + ex)
+
+          // Create RDD with WikiPageWritable elements.
+          val rawArticlesRDD: RDD[(LongWritable, WikiPageWritable)] =
+            sparkContext.newAPIHadoopRDD(hadoopConfiguration, classOf[DBpediaWikiPageInputFormat], classOf[LongWritable], classOf[WikiPageWritable])
+
+          // Unwrap WikiPages and filter unnecessary pages
+          val newRdd = rawArticlesRDD.map(_._2.get).filter
+                       {
+                         page =>
+                           page.title.namespace == Namespace.Main ||
+                             page.title.namespace == Namespace.File ||
+                             page.title.namespace == Namespace.Category ||
+                             page.title.namespace == Namespace.Template
+                       }.persist(config.sparkStorageLevel)
+
+          if (config.cacheWikiPageRDD)
+          {
+            DistIOUtils.saveRDD(newRdd, cache)
+            logger.info("Parsed WikiPages written to cache file " + cache.getSchemeWithFileName)
+          }
+
+          newRdd
+        }
+      }
+
+    val _ontology =
+    {
+      val ontologySource = config.ontologyFile match
+      {
+        case Some(ontologyFile) if ontologyFile.isFile =>
+          // Is ontologyFile defined and it is indeed a file?
+          XMLSource.fromReader(reader(ontologyFile), Language.Mappings)
+        case _ =>
+          val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
+          val url = new URL(Language.Mappings.apiUri)
+          val language = Language.Mappings
+          WikiSource.fromNamespaces(namespaces, url, language)
+      }
+
+      new OntologyReader().read(ontologySource)
+    }
+
+    val _commonsSource =
+    {
+      try
+      {
+        val finder = new Finder[Path](config.dumpDir.get, Language("commons"), config.wikiName)
+        val date = latestDate(finder)
+        XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
+      }
+      catch
+        {
+          case ex: Exception =>
+            logger.info("Could not load commons source - error: " + ex.getMessage)
+            null
+        }
+    }
+
+    val _disambiguations =
+    {
+      val cache = finder.file(date, "disambiguations-ids.obj")
+      try
+      {
+        DistDisambiguations.load(reader(finder.file(date, config.disambiguations)), cache, lang)
+      } catch
+        {
+          case ex: Exception =>
+            logger.info("Could not load disambiguations - error: " + ex.getMessage)
+            Disambiguations.empty()
+        }
+    }
+
+    val _redirects =
+    {
+      val cache = finder.file(date, "template-redirects.obj")
+      DistRedirects.load(articlesRDD, cache, lang)
+    }
+
+    val contextBroadcast = sparkContext.broadcast(new DumpExtractionContext
     {
       def ontology = _ontology
 
@@ -77,16 +187,16 @@ class DistConfigLoader(config: Config)
       {
         val namespace = Namespace.mappings(language)
 
-        if (config.mappingsDir != null && config.mappingsDir.isDirectory)
+        config.mappingsDir match
         {
-          val file = new File(config.mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
-          XMLSource.fromFile(file, Language.Mappings)
-        }
-        else
-        {
-          val namespaces = Set(namespace)
-          val url = new URL(Language.Mappings.apiUri)
-          WikiSource.fromNamespaces(namespaces, url, Language.Mappings)
+          case Some(mappingsDir) if mappingsDir.isDirectory =>
+            // Is mappingsDir defined and it is indeed a directory?
+            val path = new Path(mappingsDir, namespace.name(Language.Mappings).replace(' ', '_') + ".xml")
+            XMLSource.fromReader(reader(path), Language.Mappings)
+          case _ =>
+            val namespaces = Set(namespace)
+            val url = new URL(Language.Mappings.apiUri)
+            WikiSource.fromNamespaces(namespaces, url, Language.Mappings)
         }
       }
 
@@ -99,136 +209,53 @@ class DistConfigLoader(config: Config)
 
       def mappings: Mappings = _mappings
 
-      private val _sparkContext =
-      {
-        // Setup SparkContext. TODO: Use Config to set this up.
-        val conf = new SparkConf().setMaster("local[4]").setAppName("dbpedia-extraction")
-        conf.setSparkHome("/home/nilesh/Downloads/spark-0.8.1-incubating-bin-hadoop1")
-        conf.setJars(List("target/dist-1.0-SNAPSHOT.jar,../extraction-framework/scripts/target/scripts-4.0-SNAPSHOT.jar"))
-        //conf.set("spark.closure.serializer", "org.apache.spark.serializer.KryoSerializer")
-        conf.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-        conf.set("spark.kryo.registrator", "org.dbpedia.extraction.spark.serialize.KryoExtractionRegistrator")
-        conf.set("spark.kryoserializer.buffer.mb", "50")
-        new SparkContext(conf)
-      }
-
-      def sparkContext: SparkContext = _sparkContext
-
-      //This isn't needed here, until we make it choosable - distributed (with Spark) vs single-node extraction
-      private val _articlesSource =
-      {
-        val articlesReaders = readers(config.source, finder, date)
-
-        XMLSource.fromReaders(articlesReaders, language,
-                              title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
-                                title.namespace == Namespace.Category || title.namespace == Namespace.Template)
-      }
-
-      def articlesSource = _articlesSource
-
-      private val _articlesRDD =
-      {
-        // Initialize the RDD where we'll aggregate all the WikiPages
-        var rdd = sparkContext.parallelize(Seq[WikiPage]())
-
-        val cache = finder.file(date, "articles-rdd")
-
-        // Getting the WikiPages from local on-disk cache saves processing time.
-        try
-        {
-          logger.info("Loading articles from cache file " + cache)
-          val loaded = DistIOUtils.loadRDD(sparkContext, classOf[WikiPage], cache.getAbsolutePath)
-          // count() throws org.apache.hadoop.mapred.InvalidInputException if file doesn't exist
-          val count = loaded.count()
-          rdd = rdd ++ loaded
-          logger.info(count + " WikiPages loaded from cache file " + cache)
-        }
-        catch
-          {
-            case ex: Exception =>
-            {
-              logger.log(Level.INFO, "Will read from wiki dump file for " + lang.wikiCode + " wiki, could not load cache file '" + cache + "': " + ex)
-              val articlesReaders = readers(config.source, finder, date)
-
-              rdd = rdd ++ sparkContext.parallelize(XMLSource.fromReaders(articlesReaders, language,
-                           title => title.namespace == Namespace.Main || title.namespace == Namespace.File ||
-                             title.namespace == Namespace.Category || title.namespace == Namespace.Template).toSeq, numSlices)
-
-              DistIOUtils.saveRDD(rdd, cache.getAbsolutePath)
-            }
-          }
-        rdd
-      }
-
-      def articlesRDD = _articlesRDD
-
-      private val _redirects =
-      {
-        val cache = finder.file(date, "template-redirects.obj")
-        val redirects = DistRedirects.load(articlesRDD, cache, language)
-        redirects
-      }
+      def articlesSource: Source = null // Not needing raw article source
 
       def redirects: Redirects = _redirects
 
-      private val _disambiguations =
-      {
-        val cache = finder.file(date, "disambiguations-ids.obj")
-        try
-        {
-          Disambiguations.load(reader(finder.file(date, config.disambiguations)), cache, language)
-        } catch
-          {
-            case ex: Exception =>
-              logger.info("Could not load disambiguations - error: " + ex.getMessage)
-              null
-          }
-      }
-
       def disambiguations: Disambiguations = if (_disambiguations != null) _disambiguations else new Disambiguations(Set[Long]())
-    }
 
-    //Extractors
+    })
+
+    val context = new DistDumpExtractionContext(contextBroadcast)
+
+    // Extractors
     val extractor = CompositeParseExtractor.load(extractorClasses, context)
+
+    // Create empty directories for all datasets. This is not strictly necessary because Hadoop would create the directories
+    // it needs to by itself, though in that case the directories for unused datasets will obviously be absent.
     val datasets = extractor.datasets
+    val outputPath = finder.directory(date)
 
-    val formatDestinations = new ArrayBuffer[Destination]()
-    for ((suffix, format) <- config.formats)
+    for ((suffix, format) <- config.formats; dataset <- datasets)
     {
-
-      val datasetDestinations = new HashMap[String, Destination]()
-      for (dataset <- datasets)
-      {
-        val file = finder.file(date, dataset.name.replace('_', '-') + '.' + suffix)
-        datasetDestinations(dataset.name) = new DeduplicatingDestination(new WriterDestination(writer(file), format))
-      }
-
-      formatDestinations += new DatasetDestination(datasetDestinations)
+      new Path(outputPath, s"${finder.wikiName}-$date-${dataset.name.replace('_', '-')}.$suffix").mkdirs()
     }
 
-    val destination = new MarkerDestination(new CompositeDestination(formatDestinations.toSeq: _*), finder.file(date, Extraction.Complete), false)
+    val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, hadoopConfiguration), finder.file(date, Extraction.Complete), false)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
-    new DistExtractionJob(new RootExtractor(extractor), context.articlesRDD, config.namespaces, destination, lang.wikiCode, description)
+    new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
-  private def writer(file: File): () => Writer =
+  implicit var hadoopConfiguration: Configuration = config.hadoopConf
+
+  private def writer[T <% FileLike[_]](file: T): () => Writer =
   {
     () => IOUtils.writer(file)
   }
 
-  private def reader(file: File): () => Reader =
+  private def reader[T <% FileLike[_]](file: T): () => Reader =
   {
     () => IOUtils.reader(file)
   }
 
-  private def readers(source: String, finder: Finder[File], date: String): List[() => Reader] =
+  private def readers[T <% FileLike[_]](source: String, finder: Finder[T], date: String): List[() => Reader] =
   {
-
     files(source, finder, date).map(reader(_))
   }
 
-  private def files(source: String, finder: Finder[File], date: String): List[File] =
+  private def files[T <% FileLike[_]](source: String, finder: Finder[T], date: String): List[T] =
   {
 
     val files = if (source.startsWith("@"))
@@ -240,32 +267,6 @@ class DistConfigLoader(config: Config)
     logger.info(s"Source is ${source} - ${files.size} file(s) matched")
 
     files
-  }
-
-  //language-independent val
-  private lazy val _ontology =
-  {
-    val ontologySource = if (config.ontologyFile != null && config.ontologyFile.isFile)
-    {
-      XMLSource.fromFile(config.ontologyFile, Language.Mappings)
-    }
-    else
-    {
-      val namespaces = Set(Namespace.OntologyClass, Namespace.OntologyProperty)
-      val url = new URL(Language.Mappings.apiUri)
-      val language = Language.Mappings
-      WikiSource.fromNamespaces(namespaces, url, language)
-    }
-
-    new OntologyReader().read(ontologySource)
-  }
-
-  //language-independent val
-  private lazy val _commonsSource =
-  {
-    val finder = new Finder[File](config.dumpDir, Language("commons"), config.wikiName)
-    val date = latestDate(finder)
-    XMLSource.fromReaders(readers(config.source, finder, date), Language.Commons, _.namespace == Namespace.File)
   }
 
   private def latestDate(finder: Finder[_]): String =

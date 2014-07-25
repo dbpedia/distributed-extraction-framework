@@ -1,8 +1,11 @@
 package org.dbpedia.extraction.dump.extract
 
-import org.dbpedia.extraction.util.ProxyAuthenticator
+import org.dbpedia.extraction.util.{SparkUtils, ProxyAuthenticator, ConfigUtils}
 import java.net.Authenticator
-import org.dbpedia.extraction.util.ConfigUtils
+import scala.concurrent.{ExecutionContext, Await, Future, future}
+import scala.concurrent.duration.Duration
+import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * Dump extraction script.
@@ -16,19 +19,33 @@ object DistExtraction
 
   def main(args: Array[String]): Unit =
   {
-    require(args != null && args.length >= 1 && args(0).nonEmpty, "missing required argument: config file name")
+    require(args != null && args.length >= 2 && args(0).nonEmpty && args(1).nonEmpty, "missing required arguments: <extraction config file name> <spark config file name>")
     Authenticator.setDefault(new ProxyAuthenticator())
 
     // Load properties
-    val config = ConfigUtils.loadConfig(args(0), "UTF-8")
+    val extractionConfigProps = ConfigUtils.loadConfig(args(0), "UTF-8")
+    val distConfigProps = ConfigUtils.loadConfig(args(1), "UTF-8")
+    val distConfig = new DistConfig(distConfigProps, extractionConfigProps, new File(args(0)).toURI)
 
     // overwrite properties with CLI args
     // TODO arguments could be of the format a=b and then property a can be overwritten with "b"
 
-    //Load extraction jobs from configuration
-    val jobs = new DistConfigLoader(new Config(config)).getExtractionJobs()
+    // Create SparkContext
+    SparkUtils.setSparkLogLevels(distConfig)
+    val sparkContext = SparkUtils.getSparkContext(distConfig)
 
-    //Execute the extraction jobs one by one
-    for (job <- jobs) job.run()
+    // Load extraction jobs from configuration
+    val jobs = new DistConfigLoader(distConfig, sparkContext).getExtractionJobs()
+
+    val executor = Executors.newFixedThreadPool(distConfig.extractionJobThreads)
+    implicit val ec = ExecutionContext.fromExecutor(executor)
+    val futures = for (job <- jobs) yield future
+                                          {
+                                            job.run()
+                                          }
+    Await.result(Future.sequence(futures), Duration.Inf)
+
+    sparkContext.stop()
+    executor.shutdown()
   }
 }
