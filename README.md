@@ -76,6 +76,8 @@ In the root directory run the following commands
 
 3. The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
 
+4. Prefer pages-articles-multistream.bz2 files to pages-articles.bz2 because they are more efficient for parallel extraction. The former can be decompressed in parallel using Hadoop's splittable Bzip2Codec. Of course, this does not matter when using the pages-articlesX.xml-pXXXXXXXXXXpXXXXXXXXXX.bz2 files (which will be the files of choice for distributed downloads).
+
 4. **Important:** Finally, when running on a distributed cluster, it is essential that you set `spark.cores.max` (in dist-config.properties) to **N** \* **M** where N = total no. of slaves, M = `SPARK_WORKER_INSTANCES`. This is to ensure that Spark uses as many cores (over the entire cluster) as many workers there are.
 
 Now perform parallel extractions on your Spark cluster:
