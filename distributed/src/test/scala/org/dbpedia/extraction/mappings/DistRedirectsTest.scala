@@ -16,11 +16,21 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 
+/**
+ * Unit Test for the DistRedirects class.
+ *
+ * This test expects a DBpedia extraction configuration properties file named "config.properties" and a distributed
+ * framework configuration file named "dist-config.properties" to be present at the test/resources directory.
+ *
+ * It's better to use a small data dump like the liwiki dump to run the test.
+ *
+ * TODO: Add some wiki dump content to test upon rather than rely upon an external wiki dump file and config files.
+ */
 @RunWith(classOf[JUnitRunner])
 class DistRedirectsTest extends FunSuite
 {
   val CONFIG_FILE = "config.properties"
-  val SPARK_CONFIG_FILE = "spark-config.properties"
+  val SPARK_CONFIG_FILE = "dist-config.properties"
 
   // Fixtures shared between all tests in this class
   val (distConfig: DistConfig,
