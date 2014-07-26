@@ -16,7 +16,7 @@ This is currently a work-in-progress, and the instructions are mostly intended f
 $ wget http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
 $ tar xzf http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
 $ cd spark-0.9.1-bin-hadoop2
-$ SCALA_HOME=/usr/share/java MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package")
+$ SCALA_HOME=/usr/share/java MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package
 ```
 
 Replace SCALA_HOME according to your machine settings. It is necessary to set enough memory for maven to make Spark compile successfully.
@@ -49,7 +49,7 @@ sbin/start-all.sh
     
 We have added a script for setting up Spark and Hadoop on Google Compute Engine with the optimal settings for this framework. You can find it in the **gce** directory.
     
-Please see the [Spark official docs](http://spark.apache.org/docs/0.9.1/spark-standalone.html) for details on how to deploy Spark in standalone mode.
+Please refer to the [Spark official docs](http://spark.apache.org/docs/0.9.1/spark-standalone.html) for details on how to deploy Spark in standalone mode.
 
 ## How to Build
 
