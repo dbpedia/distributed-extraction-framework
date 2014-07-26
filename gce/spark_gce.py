@@ -406,7 +406,7 @@ def setup_spark(master_nodes,slave_nodes):
 
     setup_maven(master_nodes)
     
-    #if nmon_log_dir != "": setup_nmon(master_nodes,slave_nodes)
+    if nmon_log_dir != "": setup_nmon(master_nodes,slave_nodes)
     
     ssh_command(master,"cd engine;wget http://apache.mesi.com.ar/spark/spark-0.9.1/spark-0.9.1-bin-hadoop2.tgz")
     ssh_command(master,"cd engine;wget https://s3.amazonaws.com/sigmoidanalytics-builds/spark/0.9.1/gce/scala.tgz")
@@ -456,7 +456,7 @@ def setup_spark(master_nodes,slave_nodes):
 def setup_nmon(master_nodes,slave_nodes):
     for host in slave_nodes + master_nodes:
         print "[ Setting up nmon on %s ]" % host
-        ssh_command(host, "cd engine;mkdir nmon;cd nmon;wget -O nmon http://sourceforge.net/projects/nmon/files/nmon_x86_64_centos6;chmod a+x nmon;./nmon -s10 -f")
+        ssh_command(host, "cd engine;mkdir nmon;cd nmon;wget -O nmon http://sourceforge.net/projects/nmon/files/nmon_x86_64_centos6;chmod a+x nmon;./nmon -s10 -c10000000 -f")
 
 def aggregate_nmon(master_nodes,slave_nodes):
     for host in slave_nodes + master_nodes:
@@ -464,6 +464,18 @@ def aggregate_nmon(master_nodes,slave_nodes):
         print "[ Saving nmon log from %s to %s ]" % (host, log_file)
         ssh_command(host, "killall nmon")
         scp_command(host, "/home/" + username + "/engine/nmon/*.nmon", log_file)
+
+def set_limits(master_nodes,slave_nodes):
+    for host in slave_nodes + master_nodes:
+        ssh_command(host, "echo '*          soft    nofiles   60000' | sudo tee --append  /etc/security/limits.conf")
+        ssh_command(host, "echo '*          hard    nofiles   60000' | sudo tee --append  /etc/security/limits.conf")
+
+        ssh_command(host, "echo '*          soft    nproc     unlimited' | sudo tee --append  /etc/security/limits.conf")
+        ssh_command(host, "echo '*          hard    nproc     unlimited' | sudo tee --append  /etc/security/limits.conf")
+
+        ssh_command(host, "echo '*          soft    nproc     unlimited' | sudo tee /etc/security/limits.d/90-nproc.conf")
+        ssh_command(host, "echo '*          hard    nproc     unlimited' | sudo tee --append  /etc/security/limits.d/90-nproc.conf")
+        ssh_command(host, "echo 'root       soft    nproc     unlimited' | sudo tee --append  /etc/security/limits.d/90-nproc.conf")
 
 def setup_maven(master_nodes):
 
@@ -568,6 +580,9 @@ def real_main():
 
     #Set up Spark/Shark/Hadoop
     setup_spark(master_nodes,slave_nodes)
+
+    #Set ulimit values so that Spark jobs can work correctly
+    set_limits(master_nodes,slave_nodes)
 
 
 
