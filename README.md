@@ -35,7 +35,7 @@ export SPARK_MASTER_IP=192.168.0.100
 export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.65.x86_64
 ```
 
-Note that we have set cores (threads) per worker to 1 and set the number of workers equal to the number of cores on the machine. This is because:
+**Important**: Note that we have set cores (threads) per worker to 1 and set the number of workers equal to the number of cores on the machine. This is because:
 * The implementation that Hadoop uses to decode bzip2 files - `CBZip2InputStream` - is not thead-safe (there's a JIRA for that: https://issues.apache.org/jira/browse/HADOOP-10614). This means that allotting multiple threads to a single worker while using .bz2 input files will cause the jobs to fail.
 * Multiple JVMs rather than a single huge JVM often increases performance.
 
@@ -68,11 +68,15 @@ In the root directory run the following commands
     $ mvn clean install -Dmaven.test.skip=true # Compiles the code without running tests
     $ ./run download config=download.properties # Downloads the wikipedia dumps
 
-Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction. There is an issue open to track this and it will be fixed soon.
+**Points to keep in mind:**
 
-You need to edit the base-dir before continuing.
+1. Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `distributed/src/test/resources/`.
 
-The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
+2. **Important:** In the config.properties file, you may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction. There is an issue open to track this and it will be fixed soon.
+
+3. The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
+
+4. **Important:** Finally, when running on a distributed cluster, it is essential that you set `spark.cores.max` (in dist-config.properties) to **N** \* **M** where N = total no. of slaves, M = `SPARK_WORKER_INSTANCES`. This is to ensure that Spark uses as many cores (over the entire cluster) as many workers there are.
 
 Now perform parallel extractions on your Spark cluster:
 
