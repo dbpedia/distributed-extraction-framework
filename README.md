@@ -8,19 +8,48 @@ This is currently a work-in-progress, and the instructions are mostly intended f
 ## Requirements
 * Java 7
 * Maven 3
-* Apache Spark 0.9.1 for Hadoop 2 (HDP2, CDH5) - download it from [here](http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz)
+* Apache Spark 0.9.1 built with Apache Hadoop 2.2.0
 
 ## Setup Apache Spark
 
-    $ wget http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
-    $ tar xzf http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
-    $ cd spark-0.9.1-bin-hadoop2
+```bash
+$ wget http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
+$ tar xzf http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
+$ cd spark-0.9.1-bin-hadoop2
+$ SCALA_HOME=/usr/share/java MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package")
+```
 
-Add the hostnames of your slave nodes (after having downloaded Spark to all nodes) to conf/slaves. Remember to set SPARK_HOME. 
+Replace SCALA_HOME according to your machine settings. It is necessary to set enough memory for maven to make Spark compile successfully.
 
-    $ sbin/start-all.sh
+Add the hostnames of your slave nodes (after having downloaded Spark to all nodes) to conf/slaves. There's a bunch of attendant configurations needed for running on a cluster, like ensuring the firewall allows traffic on certain ports, ensuring passwordless access between the master and slave nodes, setting up HDFS and formatting the NameNode etc. Usually in a cluster of N nodes you would run Spark Master and Hadoop's NameNode on one node and the Spark Workers and Hadoop DataNodes on the remaining N-1 nodes.
+
+Here's a sample `spark-env.sh` for a cluster where the slaves have 4 cores and 15G RAM each:
+```bash
+export SCALA_HOME=/usr/share/java
+export SPARK_MEM=2500m
+export SPARK_WORKER_CORES=1
+export SPARK_WORKER_INSTANCES=4
+SPARK_JAVA_OPTS+=" -Dspark.local.dir=/mnt/spark"
+export SPARK_JAVA_OPTS
+export SPARK_MASTER_IP=192.168.0.100
+export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.65.x86_64
+```
+
+Note that we have set cores (threads) per worker to 1 and set the number of workers equal to the number of cores on the machine. This is because:
+* The implementation that Hadoop uses to decode bzip2 files - `CBZip2InputStream` - is not thead-safe (there's a JIRA for that: https://issues.apache.org/jira/browse/HADOOP-10614). This means that allotting multiple threads to a single worker while using .bz2 input files will cause the jobs to fail.
+* Multiple JVMs rather than a single huge JVM often increases performance.
+
+While running tests we have found that setting `spark.executor.memory` to 2500m - 3000m is a good idea with the above sample configuration. It is given in the sample dist-config.properties file discussed in the next section.
+
+And at the end:
+
+```
+sbin/start-all.sh
+```
     
-Please see the [official docs](http://spark.apache.org/docs/latest/spark-standalone.html) for details on how to deploy Spark in standalone mode.
+We have added a script for setting up Spark and Hadoop on Google Compute Engine with the optimal settings for this framework. You can find it in the **gce** directory.
+    
+Please see the [Spark official docs](http://spark.apache.org/docs/0.9.1/spark-standalone.html) for details on how to deploy Spark in standalone mode.
 
 ## How to Build
 
@@ -28,29 +57,26 @@ Clone the latest version of the repo and switch to stage branch:
 
     $ git clone https://github.com/dbpedia/distributed-extraction-framework.git
     $ cd distributed-extraction-framework
-    $ git checkout stage
     $ mvn clean install -Dmaven.test.skip=true # Compiles the code without running tests
 
 ## Dump-based Distributed Extraction
 
-Follow the instructions given below to download data for the extractions you need to perform. An example of the download.properties file is given at `distributed/src/test/resources/li.download.properties`
+Follow the instructions given below to download data for the extractions you need to perform. An example of the download.properties file is given at `distributed/src/test/resources/download.properties`
 
 In the root directory run the following commands
 
     $ mvn clean install -Dmaven.test.skip=true # Compiles the code without running tests
-    $ ./run download config=download-config-file # Downloads the wikipedia dumps
+    $ ./run download config=download.properties # Downloads the wikipedia dumps
 
-You can replace `download-config-file` with `distributed/src/test/resources/li.download.properties`, after changing the `base-dir` option in the `li.download.properties` to a directory where you want to perform the dataset downloads and extractions.
-
-Before performing extractions you will need a config.properties file for general extraction configuration and a spark.config.properties file for Spark-specific configuration. Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction.
+Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `distributed/src/test/resources/`. The example config.properties has the setting `extractors=.PageIdExtractor,.RedirectExtractor`. You may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction. There is an issue open to track this and it will be fixed soon.
 
 You need to edit the base-dir before continuing.
 
-The example `distributed/src/test/resources/spark.config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077`)
+The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
 
 Now perform parallel extractions on your Spark cluster:
 
-    $ ./run extraction distributed/src/test/resources/config.properties distributed/src/test/resources/spark-config.properties
+    $ ./run extraction distributed/src/test/resources/config.properties distributed/src/test/resources/disk-config.properties
 
 
 ### Testing
