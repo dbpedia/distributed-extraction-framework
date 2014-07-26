@@ -169,11 +169,8 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
         }
     }
 
-    val _redirects =
-    {
-      val cache = finder.file(date, "template-redirects.obj")
-      DistRedirects.load(articlesRDD, cache, lang)
-    }
+    val redirectsCache = finder.file(date, "template-redirects.obj")
+    lazy val _redirects = DistRedirects.load(articlesRDD, cache, lang) // lazy because it will be evaluated in DistExtractionJob.run()
 
     val contextBroadcast = sparkContext.broadcast(new DumpExtractionContext
     {
@@ -235,7 +232,7 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, hadoopConfiguration), finder.file(date, Extraction.Complete), false)
 
     val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
-    new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
+    new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, context, lang.wikiCode, description)
   }
 
   implicit var hadoopConfiguration: Configuration = config.hadoopConf
