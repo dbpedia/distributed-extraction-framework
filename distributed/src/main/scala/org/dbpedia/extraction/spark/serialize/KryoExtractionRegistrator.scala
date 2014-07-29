@@ -7,6 +7,7 @@ import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Namespace, WikiTitle}
 import org.dbpedia.extraction.util.Language
 import java.util.logging.Logger
+import org.dbpedia.extraction.dataparser.ParserUtils
 
 /**
  * It's best to register the classes that will be serialized/deserialized with Kryo.
@@ -30,6 +31,7 @@ class KryoExtractionRegistrator extends KryoRegistrator
     kryo.register(classOf[org.dbpedia.extraction.mappings.DistRedirects])
     kryo.register(classOf[org.dbpedia.extraction.mappings.ExternalLinksExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.GeoExtractor])
+    kryo.register(classOf[org.dbpedia.extraction.mappings.InfoboxExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.InterLanguageLinksExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.LabelExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.PageIdExtractor])
@@ -40,6 +42,7 @@ class KryoExtractionRegistrator extends KryoRegistrator
     kryo.register(classOf[org.dbpedia.extraction.mappings.RevisionIdExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.RootExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.SkosCategoriesExtractor])
+    kryo.register(classOf[org.dbpedia.extraction.dataparser.ParserUtils])
     kryo.register(classOf[org.dbpedia.extraction.ontology.datatypes.Datatype])
     kryo.register(classOf[org.dbpedia.extraction.ontology.OntologyClass])
     kryo.register(classOf[org.dbpedia.extraction.ontology.OntologyDatatypeProperty])
@@ -59,5 +62,6 @@ class KryoExtractionRegistrator extends KryoRegistrator
     kryo.register(classOf[Namespace])
     kryo.register(classOf[Language], new LanguageSerializer)
     kryo.register(classOf[Logger], new LoggerSerializer)
+    kryo.register(classOf[ParserUtils], new ParserUtilsSerializer)
   }
 }
