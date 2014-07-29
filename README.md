@@ -36,7 +36,7 @@ export JAVA_HOME=/usr/lib/jvm/java-1.7.0-openjdk-1.7.0.65.x86_64
 ```
 
 **Important**: Note that we have set cores (threads) per worker to 1 and set the number of workers equal to the number of cores on the machine. This is because:
-* The implementation that Hadoop uses to decode bzip2 files - `CBZip2InputStream` - is not thead-safe (there's a JIRA for that: https://issues.apache.org/jira/browse/HADOOP-10614). This means that allotting multiple threads to a single worker while using .bz2 input files will cause the jobs to fail.
+* The implementation that Hadoop uses to decode bzip2 files - `CBZip2InputStream` - is not thead-safe (there's a JIRA for that: httips://issues.apache.org/jira/browse/HADOOP-10614). This means that allotting multiple threads to a single worker while using .bz2 input files will cause the jobs to fail.
 * Multiple JVMs rather than a single huge JVM often increases performance.
 
 While running tests we have found that setting `spark.executor.memory` to 2500m - 3000m is a good idea with the above sample configuration. It is given in the sample dist-config.properties file discussed in the next section.
@@ -72,7 +72,7 @@ In the root directory run the following commands
 
 1. Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `distributed/src/test/resources/`.
 
-2. **Important:** In the config.properties file, you may add all the extractors to it, except InfoboxExtractor which won't work correctly (output will not match with that of the original framework) as yet because it maintains internal state during extraction. There is an issue open to track this and it will be fixed soon.
+2. **Important:** In the config.properties file, you may add all the extractors to it, except InfoboxExtractor which won't work correctly as of yet. There is an issue open to track this and it will be fixed soon. [1]
 
 3. The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
 
@@ -87,3 +87,5 @@ Now perform parallel extractions on your Spark cluster:
 
 ### Testing
 Please see the [wiki page for Testing](https://github.com/dbpedia/distributed-extraction-framework/wiki/Testing) for detailed instructions on how to verify outputs of the distributed extraction framework by comparing them with that of the original.
+
+[1]: The soon-to-be-merged pull request at https://github.com/dbpedia/distributed-extraction-framework/pull/53 will allow the InfoboxExtractor to run (ie. we can now run all extractors!) but the output will contain some Quads with duplicate `propertyUri`. This is because InfoboxExtractor maintains state in a `HashMap` to filter duplicates, and this does not work in a distributed setting. We can add a post-processing job later that does a group-and-filter of the infobox output dataset.
