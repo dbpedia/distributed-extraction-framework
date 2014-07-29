@@ -23,6 +23,8 @@ class KryoExtractionRegistrator extends KryoRegistrator
     kryo.register(classOf[org.dbpedia.extraction.destinations.Quad])
     kryo.register(classOf[org.dbpedia.extraction.dump.extract.DistConfigLoader])
     kryo.register(classOf[org.dbpedia.extraction.dump.extract.DistDumpExtractionContext])
+    kryo.register(classOf[org.dbpedia.extraction.dump.extract.DumpExtractionContext])
+    kryo.register(classOf[org.dbpedia.extraction.dump.extract.DumpExtractionContextWrapper])
     kryo.register(classOf[org.dbpedia.extraction.mappings.ArticleCategoriesExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.ArticlePageExtractor])
     kryo.register(classOf[org.dbpedia.extraction.mappings.ArticleTemplatesExtractor])
