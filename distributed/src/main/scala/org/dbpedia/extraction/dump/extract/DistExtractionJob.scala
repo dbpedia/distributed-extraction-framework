@@ -19,14 +19,12 @@ import org.dbpedia.util.Exceptions
  * @param destination The extraction destination. Will be closed after the extraction has been finished.
  * @param label user readable label of this extraction job.
  */
-class DistExtractionJob(val extractor: RootExtractor, val rdd: RDD[WikiPage], val namespaces: Set[Namespace], destination: DistDestination, context: DumpExtractionContext, label: String, description: String)
+class DistExtractionJob(extractor: => RootExtractor, rdd: => RDD[WikiPage], namespaces: Set[Namespace], destination: => DistDestination, label: String, description: => String)
 {
   private val logger = Logger.getLogger(getClass.getName)
 
   def run(): Unit =
   {
-    context.redirects // Trigger evaluation of lazy redirects.
-
     val sc = rdd.sparkContext
     val allPages = sc.accumulator(0)
     val failedPages = sc.accumulator(0)

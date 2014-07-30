@@ -78,12 +78,11 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     hadoopConfiguration.set("dbpedia.wiki.name", config.wikiName)
     hadoopConfiguration.set("dbpedia.wiki.language.wikicode", lang.wikiCode)
     hadoopConfiguration.set("dbpedia.wiki.date", date)
-    hadoopConfiguration.set("mapreduce.input.fileinputformat.split.maxsize", (1024*1024*8).toString)
     hadoopConfiguration.setBoolean("dbpedia.output.overwrite", config.overwriteOutput)
 
     // Getting the WikiPages from local on-disk cache saves processing time.
     val cache = finder.file(date, "articles-rdd")
-    val articlesRDD: RDD[WikiPage] = try
+    lazy val articlesRDD: RDD[WikiPage] = try
     {
       if (!cache.exists)
         throw new IOException("Cache file " + cache.getSchemeWithFileName + " does not exist.")
@@ -170,9 +169,9 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
     }
 
     val redirectsCache = finder.file(date, "template-redirects.obj")
-    lazy val _redirects = DistRedirects.load(articlesRDD, cache, lang) // lazy because it will be evaluated in DistExtractionJob.run()
+    lazy val _redirects = DistRedirects.load(articlesRDD, redirectsCache, lang) // lazy because it will be evaluated in DistExtractionJob.run()
 
-    val contextBroadcast = sparkContext.broadcast(new DumpExtractionContext
+    lazy val context = new DumpExtractionContext
     {
       def ontology = _ontology
 
@@ -211,28 +210,41 @@ class DistConfigLoader(config: DistConfig, sparkContext: SparkContext)
       def redirects: Redirects = _redirects
 
       def disambiguations: Disambiguations = if (_disambiguations != null) _disambiguations else new Disambiguations(Set[Long]())
-
-    })
-
-    val context = new DistDumpExtractionContext(contextBroadcast)
-
-    // Extractors
-    val extractor = CompositeParseExtractor.load(extractorClasses, context)
-
-    // Create empty directories for all datasets. This is not strictly necessary because Hadoop would create the directories
-    // it needs to by itself, though in that case the directories for unused datasets will obviously be absent.
-    val datasets = extractor.datasets
-    val outputPath = finder.directory(date)
-
-    for ((suffix, format) <- config.formats; dataset <- datasets)
-    {
-      new Path(outputPath, s"${finder.wikiName}-$date-${dataset.name.replace('_', '-')}.$suffix").mkdirs()
     }
 
-    val destination = new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, hadoopConfiguration), finder.file(date, Extraction.Complete), false)
+    // Extractors - this is lazily evaluated in DistExtractionJob.run() so that the distributed redirect extraction happens inside run()
+    // NOTE: All subsequent references to this val need to be lazy!
+    lazy val extractor =
+    {
+      val _redirects = context.redirects // Trigger evaluation of lazy redirects and load the updated context into extractors.
+      val updatedContext = new DumpExtractionContextWrapper(context)
+      {
+        override def redirects: Redirects = _redirects
+      }
+      CompositeParseExtractor.load(extractorClasses, updatedContext)
+    }
 
-    val description = lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
-    new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, context, lang.wikiCode, description)
+    lazy val destination =
+    {
+      // Create empty directories for all datasets. This is not strictly necessary because Hadoop would create the directories
+      // it needs to by itself, though in that case the directories for unused datasets will obviously be absent.
+      val datasets = extractor.datasets
+      val outputPath = finder.directory(date)
+
+      for ((suffix, format) <- config.formats; dataset <- datasets)
+      {
+        new Path(outputPath, s"${finder.wikiName}-$date-${dataset.name.replace('_', '-')}.$suffix").mkdirs()
+      }
+      new DistMarkerDestination(new DistDeduplicatingWriterDestination(outputPath, hadoopConfiguration), finder.file(date, Extraction.Complete), false)
+    }
+
+    lazy val description =
+    {
+      val datasets = extractor.datasets
+      lang.wikiCode + ": " + extractorClasses.size + " extractors (" + extractorClasses.map(_.getSimpleName).mkString(",") + "), " + datasets.size + " datasets (" + datasets.mkString(",") + ")"
+    }
+
+    new DistExtractionJob(new RootExtractor(extractor), articlesRDD, config.namespaces, destination, lang.wikiCode, description)
   }
 
   implicit var hadoopConfiguration: Configuration = config.hadoopConf
