@@ -38,22 +38,6 @@
                 <configuration>
                     <launchers>
                         <launcher>
-                            <id>download</id>
-                            <mainClass>org.dbpedia.extraction.dump.download.Download</mainClass>
-                            <!--
-                            <jvmArgs>
-                                <jvmArg>-Dhttp.proxyHost=proxy.server.com</jvmArg>
-                                <jvmArg>-Dhttp.proxyPort=port</jvmArg>
-                                <jvmArg>-Dhttp.proxyUser=user</jvmArg>
-                                <jvmArg>-Dhttp.proxyPassword=password</jvmArg>
-                                <jvmArg>-Dhttp.nonProxyHosts="localhost|127.0.0.1"</jvmArg>
-                             </jvmArgs>
-                             -->
-                            <!-- ../run download config=download.properties -->
-                        </launcher>
-
-                        <!-- A launcher for sequential extraction - useful for testing/verifying results -->
-                        <launcher>
                             <id>seq-extraction</id>
                             <mainClass>org.dbpedia.extraction.dump.extract.Extraction</mainClass>
 
