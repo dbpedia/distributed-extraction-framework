@@ -23,7 +23,7 @@
     </properties>
 
     <modules>
-        <module>distributed</module>
+        <module>extraction</module>
     </modules>
 
     <build>
