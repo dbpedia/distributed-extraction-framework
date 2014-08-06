@@ -40,7 +40,7 @@
                     <launchers>
                         <launcher>
                             <id>seq-download</id>
-                            <mainClass>org.dbpedia.extraction.dump.download.Download</mainClass>
+                            <mainClass>org.dbpedia.extraction.dump.download.DistDownload</mainClass>
                             <!--
                             <jvmArgs>
                                 <jvmArg>-Dhttp.proxyHost=proxy.server.com</jvmArg>
@@ -74,6 +74,24 @@
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>org.dbpedia.extraction</groupId>
+            <artifactId>dump</artifactId>
+            <version>4.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.dbpedia.distributed-extraction</groupId>
+            <artifactId>common</artifactId>
+            <version>4.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+
         <dependency>
             <groupId>com.typesafe.akka</groupId>
             <artifactId>akka-contrib_2.10</artifactId>

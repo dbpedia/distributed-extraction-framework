@@ -25,6 +25,7 @@
     <modules>
         <module>extraction</module>
         <module>download</module>
+        <module>common</module>
     </modules>
 
     <build>
