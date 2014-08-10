@@ -1,35 +1,48 @@
 package org.dbpedia.extraction.dump.download
 
 import org.apache.hadoop.fs.Path
+import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import java.io.File
 import scala.io.{Codec, Source}
 import org.dbpedia.extraction.util.HadoopConfigurable
-import java.net.{MalformedURLException, URL}
+import java.net.URL
 
 /**
- * Created by nilesh on 6/8/14.
+ * Distributed download and general download configuration
+ * @param args List of arguments in key=value format as explained in the Usage object.
  */
-class DistDownloadConfig(configFile: File, distConfigFile: File) extends HadoopConfigurable
+class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurable
 {
-  /**
-   * Parse the original download configuration file and distributed download configuration file.
-   * Each line in file must be an argument as explained by usage overview.
-   */
-  downloadConfig.parse(configFile) // parse the original config file
-  withSource(distConfigFile)(source => parse(distConfigFile.getParentFile, source.getLines()))
+  import DownloadConfig._
 
-  val downloadConfig = new DownloadConfig()
+  private val downloadConfig = new DownloadConfig()
 
-  var wikiName = downloadConfig.wikiName
-  var baseUrl = downloadConfig.baseUrl
-  var dateRange = downloadConfig.dateRange
-  var dumpCount = downloadConfig.dumpCount
-  var retryMax = downloadConfig.retryMax
-  var retryMillis = downloadConfig.retryMillis
-  var unzip = downloadConfig.unzip
-  var progressPretty = downloadConfig.progressPretty
-  val languages = downloadConfig.languages
-  val ranges = downloadConfig.ranges
+  downloadConfig.parse(null, args) // parse the general config file
+  parse(null, args) // parse the distributed downloads config file
+  if (baseDir == null) throw Usage("No target directory")
+  if ((languages.nonEmpty || ranges.nonEmpty) && baseUrl == null) throw Usage("No base URL")
+  if (languages.isEmpty && ranges.isEmpty) throw Usage("No files to download")
+  if (!baseDir.exists && !baseDir.mkdirs()) throw Usage("Target directory '" + baseDir + "' does not exist and cannot be created")
+
+  def wikiName = downloadConfig.wikiName
+
+  def baseUrl = downloadConfig.baseUrl
+
+  def dateRange = downloadConfig.dateRange
+
+  def dumpCount = downloadConfig.dumpCount
+
+  def retryMax = downloadConfig.retryMax
+
+  def retryMillis = downloadConfig.retryMillis
+
+  def unzip = downloadConfig.unzip
+
+  def progressPretty = downloadConfig.progressPretty
+
+  def languages = downloadConfig.languages
+
+  def ranges = downloadConfig.ranges
 
   /**
    * Download directory. If absent in distributed download config, obtain it from the original config file.
@@ -40,7 +53,7 @@ class DistDownloadConfig(configFile: File, distConfigFile: File) extends HadoopC
    * List of mirrors to download from. These will be comma-separated URLs (which are in the same format as baseUrl). Example:
    * mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://dumps.wikimedia.your.org/
    */
-  var mirrors = Array("http://dumps.wikimedia.org")
+  var mirrors: Array[URL] = Array(new URL("http://dumps.wikimedia.org"))
 
   /**
    * If each language consists of multiple dump files (eg. enwiki-latest-pages-articles1.xml-p000000010p000010000.bz2)
@@ -51,44 +64,13 @@ class DistDownloadConfig(configFile: File, distConfigFile: File) extends HadoopC
   var sequentialLanguages: Boolean = false
 
   /**
-   * Number of simultaneous downloads from each mirror per slave node.
+   * Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
    */
   var threadsPerMirror = 2
 
   /** Path to hadoop core-site.xml, hadoop hdfs-site.xml and hadoop mapred-site.xml respectively */
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
-  {
-    var hadoopCoreConf: String = null
-    var hadoopHdfsConf: String = null
-    var hadoopMapredConf: String = null
-
-    withSource(distConfigFile)
-    {
-      source =>
-        val dir = distConfigFile.getParentFile
-        val args = source.getLines()
-        for (a <- args; arg = a.trim) arg match
-        {
-          case Ignored(_) => // ignore
-          case Arg("hadoop-coresite-xml-path", file) => hadoopCoreConf = file
-          case Arg("hadoop-hdfssite-xml-path", file) => hadoopHdfsConf = file
-          case Arg("hadoop-mapredsite-xml-path", file) => hadoopMapredConf = file
-          case _ => throw Usage("Invalid argument '" + arg + "'")
-        }
-    }
-
-    (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf)
-  }
-
-  //  /**
-  //   * Parse the original download configuration file and distributed download configuration file.
-  //   * Each line in file must be an argument as explained by usage overview.
-  //   */
-  //  def parse(configFile: File, distConfigFile: File): Unit =
-  //  {
-  //    downloadConfig.parse(configFile) // parse the original config file
-  //    withSource(distConfigFile)(source => parse(distConfigFile.getParentFile, source.getLines()))
-  //  }
+    parseHadoopConfigs(null, args)
 
   /**
    * @param dir Context directory. Config file and base dir names will be resolved relative to
@@ -96,7 +78,7 @@ class DistDownloadConfig(configFile: File, distConfigFile: File) extends HadoopC
    *            of that file. Otherwise, this argument should be the current working directory (or null,
    *            which has the same effect).
    */
-  def parse(dir: File, args: TraversableOnce[String]): Unit =
+  def parse(dir: File, args: TraversableOnce[String])
   {
     var distBaseDir: String = null
 
@@ -110,70 +92,132 @@ class DistDownloadConfig(configFile: File, distConfigFile: File) extends HadoopC
       case Arg("distconfig", path) =>
         val file = resolveFile(dir, path)
         if (!file.isFile) throw Usage("Invalid file " + file, arg)
-        parse(file)
-      case _ => throw Usage("Invalid argument '" + arg + "'")
+        withSource(file)(source => parse(file.getParentFile, source.getLines()))
+      case _ => //throw Usage("Invalid argument '" + arg + "'")
     }
 
-    baseDir = getPath(new Path(downloadConfig.baseDir.getPath), distBaseDir)
+    // First checks the Path obtained from distributed download config, then the general download config file if the former is null
+    baseDir = checkPathExists(Option(
+                                      new Path(if (distBaseDir != null)
+                                               {
+                                                 distBaseDir
+                                               }
+                                               else
+                                               {
+                                                 if (downloadConfig.baseDir == null) throw Usage("No target directory")
+                                                 downloadConfig.baseDir.getPath
+                                               })
+                                    ), pathMustExist = true).get
   }
 
   /**
-   * First checks the Path obtained from distributed download config, then the general download config file..
-   *
-   * @param originalBaseDir base-dir from general download config file
-   * @param distBaseDir base-dir from distributed download config file
-   * @throws RuntimeException if the obtained path does not exist
-   * @return the obtained Path
+   * Parses the args to extract Hadoop *-site.xml configuration file paths
+   * @return Tuple of Hadoop configuration file paths
    */
-  private def getPath(originalBaseDir: Path, distBaseDir: Path) =
+  private def parseHadoopConfigs(dir: File, args: TraversableOnce[String]): (String, String, String) =
   {
-    val somePath = Option(if (distBaseDir != null) distBaseDir else originalBaseDir)
-    checkPathExists(somePath, pathMustExist = true)
-    somePath.get
-  }
+    var hadoopCoreConf: String = null
+    var hadoopHdfsConf: String = null
+    var hadoopMapredConf: String = null
 
-  // TODO: Make resolveFile, toBoolean, toInt and toURL public in DownloadConfig and reuse them instead of copying code?
-
-  /**
-   * If path is absolute, return it as a File. Otherwise, resolve it against parent.
-   * (This method does what the File(File, String) constructor should do. Like URL(URL, String))
-   * @param parent may be null
-   * @param path must not be null, may be empty
-   */
-  private def resolveFile(parent: File, path: String): File = {
-    val child = new File(path)
-    val file = if (child.isAbsolute) child else new File(parent, path)
-    // canonicalFile removes '/../' etc.
-    file.getCanonicalFile
-  }
-
-  private def toBoolean(s: String, arg: String): Boolean =
-    if (s == "true" || s == "false") s.toBoolean else throw Usage("Invalid boolean value", arg)
-
-  private def toInt(str: String, min: Int, max: Int, arg: String): Int =
-    try
+    for (a <- args; arg = a.trim) arg match
     {
-      val result = str.toInt
-      if (result < min) throw new NumberFormatException(str + " < " + min)
-      if (result > max) throw new NumberFormatException(str + " > " + max)
-      result
+      case Ignored(_) => // ignore
+      case Arg("hadoop-coresite-xml-path", file) => hadoopCoreConf = file
+      case Arg("hadoop-hdfssite-xml-path", file) => hadoopHdfsConf = file
+      case Arg("hadoop-mapredsite-xml-path", file) => hadoopMapredConf = file
+      case Arg("distconfig", path) =>
+        val file = resolveFile(dir, path)
+        if (!file.isFile) throw Usage("Invalid file " + file, arg)
+        withSource(file)
+        {
+          source =>
+            val confs = parseHadoopConfigs(file.getParentFile, source.getLines())
+            hadoopCoreConf = confs._1
+            hadoopHdfsConf = confs._2
+            hadoopMapredConf = confs._3
+        }
+      case _ => //throw Usage("Invalid argument '" + arg + "'")
     }
-    catch
-      {
-        case nfe: NumberFormatException => throw Usage("invalid integer", arg, nfe)
-      }
-
-  private def toURL(s: String, arg: String): URL =
-    try new URL(s)
-    catch
-      {
-        case mue: MalformedURLException => throw Usage("Invalid URL", arg, mue)
-      }
+    (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf)
+  }
 
   private def withSource(file: File)(func: Source => Unit)
   {
     val source = Source.fromFile(file)(Codec.UTF8)
     func(source)
     source.close()
+  }
+}
+
+object Usage {
+  def apply(msg: String, arg: String = null, cause: Throwable = null): Exception = {
+    val message = if (arg == null) msg else msg+" in '"+arg+"'"
+
+    println(message)
+    val usage = /* empty line */ """
+Usage (with example values):
+==============================
+General download configuration
+==============================
+config=/example/path/file.cfg
+  Path to exisiting UTF-8 text file whose lines contain arguments in the format given here.
+  Absolute or relative path. File paths in that config file will be interpreted relative to
+  the config file.
+base-dir=/example/path
+  Path to existing target directory (on local file system or HDFS). Required.
+download-dates=20120530-20120610
+  Only dumps whose page date is in this range will be downloaded. By default, all dumps are
+  included, starting with the newest. Open ranges like 20120530- or -20120610 are allowed.
+download-count=1
+  Max number of dumps to download. Default is 1.
+download=en,zh-yue,1000-2000,...:file1,file2,...
+  Download given files for given languages from server. Each key is either '@mappings', a language
+  code, or a range. In the latter case, languages with a matching number of articles will be used.
+  If the start of the range is omitted, 0 is used. If the end of the range is omitted,
+  infinity is used. For each language, a new sub-directory is created in the target directory.
+  Each file is a file name like 'pages-articles.xml.bz2' or a regex if it starts with a '@' (useful for
+  multiple files processing, i.e. multiple parts of the same file) to which a prefix like
+ 'enwiki-20120307-' will be added. This argument can be used multiple times, for example
+  'download=en:foo.xml download=de:bar.xml'. '@mappings' means all languages that have a
+   mapping namespace on http://mappings.dbpedia.org.
+retry-max=5
+  Number of total attempts if the download of a file fails. Default is no retries.
+retry-millis=1000
+  Milliseconds between attempts if the download of a file fails. Default is 10000 ms = 10 seconds.
+unzip=true
+  Should downloaded .gz and .bz2 files be unzipped on the fly? Default is false.
+pretty=true
+  Should progress printer reuse one line? Doesn't work with log files, so default is false.
+Order is relevant - for single-value parameters, values read later overwrite earlier values.
+Empty arguments or arguments beginning with '#' are ignored.
+
+==================================
+Distributed download configuration
+==================================
+distconfig=/example/path/file.cfg
+  Path to existing distributed download configuration text file (UTF-8) whose lines contain arguments
+  in the format given here. Absolute or relative path. File paths in that config file will be interpreted
+  relative to the config file.
+mirrors=http://dumps.wikimedia.org/
+  List of mirrors to download from. These will be comma-separated URLs.
+  Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://dumps.wikimedia.your.org/
+threads-per-mirror=2
+  Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
+sequential-languages=false
+  If each language consists of multiple dump files (eg. enwiki-latest-pages-articles1.xml-p000000010p000010000.bz2)
+  they are downloaded in parallel. Multiple languages are downloaded in parallel too, giving us 2 levels of
+  parallelism. If sequentialLanguages is set to true, one language is downloaded at a time, otherwise,
+  all languages are downloaded in parallel.
+hadoop-coresite-xml-path=/path/to/core-site.xml
+  Path to hadoop core-site.xml configuration file.
+hadoop-hdfssite-xml-path=/path/to/hdfs-site.xml
+  Path to hadoop hdfs-site.xml configuration file.
+hadoop-mapredsite-xml-path=/path/to/mapred-site.xml
+  Path to hadoop mapred-site.xml configuration file.
+                                 """ /* empty line */
+    println(usage)
+
+    new Exception(message, cause)
   }
 }
