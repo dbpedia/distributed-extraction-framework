@@ -39,8 +39,9 @@ trait HadoopConfigurable
    * @param path Option[Path] if this is None, pathMustExist has no effect.
    * @param pathMustExist Boolean to ensure that the Path, if obtained, actually exists.
    * @throws RuntimeException if Option[Path] is defined but the path does not exist
+   * @return the Option[Path] given as input
    */
-  def checkPathExists(path: Option[Path], pathMustExist: Boolean)
+  def checkPathExists(path: Option[Path], pathMustExist: Boolean): Option[Path] =
   {
     // If pathMustExist is set to true, and path is defined but it does not exist, throw an error.
     if (pathMustExist && path.isDefined && !path.get.exists)
@@ -48,5 +49,6 @@ trait HadoopConfigurable
       val hadoopHint = if (hadoopCoreConf == null || hadoopHdfsConf == null || hadoopMapredConf == null) " Make sure you configured Hadoop correctly and the directory exists on the configured file system." else ""
       throw sys.error("Dir " + path.get + " does not exist." + hadoopHint)
     }
+    path
   }
 }
