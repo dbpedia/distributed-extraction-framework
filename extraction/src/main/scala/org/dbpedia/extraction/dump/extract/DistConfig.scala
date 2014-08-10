@@ -149,7 +149,6 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
                           })
 
     checkPathExists(somePath, pathMustExist)
-    somePath
   }
 
   /**
