@@ -40,7 +40,7 @@
                     <launchers>
                         <launcher>
                             <id>seq-download</id>
-                            <mainClass>org.dbpedia.extraction.dump.download.DistDownload</mainClass>
+                            <mainClass>org.dbpedia.extraction.dump.download.Download</mainClass>
                             <!--
                             <jvmArgs>
                                 <jvmArg>-Dhttp.proxyHost=proxy.server.com</jvmArg>
