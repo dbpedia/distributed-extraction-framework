@@ -36,8 +36,16 @@ case class DumpFile(baseDir: Path, wikiSuffix: String, language: Language, date:
 /**
  * Download job used by the actor framework.
  *
- * @param downloadId Unique job ID
+ * @param job MirroredDownloadJob
+ * @param outputPath Output path name in scheme://path/fileName format
+ * @param bytes Total bytes downloaded
  */
-case class DownloadResult(downloadId: String, outputPath: String, bytes: Long)
+case class DownloadResult(job: MirroredDownloadJob, outputPath: String, bytes: Long)
 
-
+/**
+ * Progress reports sent from Master to DownloadResultConsumer.
+ *
+ * @param job MirroredDownloadJob
+ * @param bytes Number of bytes downloaded till now
+ */
+case class DownloadProgress(job: MirroredDownloadJob, bytes: Long)

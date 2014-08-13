@@ -19,6 +19,10 @@ class DownloadResultConsumer extends Actor with ActorLogging
     case _: DistributedPubSubMediator.SubscribeAck =>
     case DownloadResult(downloadId, outputPath, bytes) =>
       log.info("{}: {} bytes downloaded to {}", downloadId, bytes, outputPath)
+      //TODO: Refactor DownloadResult and this code to pretty-print better progress results like ByteLogger
+    case DownloadProgress(downloadJob, progress) =>
+      log.info("{}: {} bytes downloaded", downloadJob, progress)
+      //TODO: Refactor DownloadProgress and this code to pretty-print better progress results like ByteLogger
     case ShutdownCluster =>
       context.stop(self)
       context.system.shutdown()

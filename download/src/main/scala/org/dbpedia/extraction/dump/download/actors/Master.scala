@@ -78,6 +78,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
       workers.get(workerId) match
       {
         case Some(s@WorkerState(_, Busy(downloadJob, deadline))) =>
+          mediator ! DistributedPubSubMediator.Publish(ProgressTopic, DownloadProgress(downloadJob, progress))
           workers -= workerId
           workers += (workerId -> WorkerState(sender, status = Busy(downloadJob, Deadline.now + workTimeout)))
 
@@ -129,7 +130,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
           mirrorsInUse += (mirror -> (mirrorsInUse(mirror) - 1))
           workers += (workerId -> s.copy(status = Idle))
 
-          mediator ! DistributedPubSubMediator.Publish(ResultsTopic, DownloadResult(downloadId, outputPath, totalBytes))
+          mediator ! DistributedPubSubMediator.Publish(ResultsTopic, DownloadResult(downloadJob, outputPath, totalBytes))
 
           sender ! MasterWorkerMessage.Ack(downloadId)
         case _ =>
@@ -209,6 +210,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
 object Master
 {
   val ResultsTopic = "results"
+  val ProgressTopic = "progress"
   val General = "general"
 
   def props(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: Int): Props =
