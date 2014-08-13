@@ -1,8 +1,5 @@
 package org.dbpedia.extraction.dump.download.actors.protocol
 
-/**
- * Created by nilesh on 12/8/14.
- */
 object MasterWorkerProtocol
 {
   // Messages from Workers

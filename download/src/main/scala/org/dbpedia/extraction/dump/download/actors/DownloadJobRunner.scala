@@ -43,7 +43,7 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
 
   def receive =
   {
-    case MirroredDownloadJob(mirror, DownloadJob(_, DumpFileInfo(baseDir, wikiName, lang, date, fileName))) =>
+    case MirroredDownloadJob(mirror, DownloadJob(_, DumpFile(baseDir, wikiName, lang, date, fileName))) =>
       val s = sender()
       import context.dispatcher
 

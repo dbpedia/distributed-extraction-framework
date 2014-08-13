@@ -20,7 +20,7 @@ case class MirroredDownloadJob(baseUrl: URL, job: DownloadJob)
  * @param downloadId Unique job ID
  * @param info URL information
  */
-case class DownloadJob(downloadId: String, info: DumpFileInfo)
+case class DownloadJob(downloadId: String, info: DumpFile)
 
 /**
  * Download information for single wiki dump file.
@@ -31,7 +31,7 @@ case class DownloadJob(downloadId: String, info: DumpFileInfo)
  * @param date YYYYMMDD date string
  * @param fileName File name to save the URL to
  */
-case class DumpFileInfo(baseDir: Path, wikiSuffix: String, language: Language, date: String, fileName: String)
+case class DumpFile(baseDir: Path, wikiSuffix: String, language: Language, date: String, fileName: String)
 
 /**
  * Download job used by the actor framework.
