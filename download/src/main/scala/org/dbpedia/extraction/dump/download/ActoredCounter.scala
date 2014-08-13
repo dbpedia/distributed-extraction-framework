@@ -4,8 +4,8 @@ import akka.actor.ActorRef
 import java.io.InputStream
 import java.net.URLConnection
 import org.dbpedia.extraction.util.CountingInputStream
-import org.dbpedia.extraction.dump.download.actors.protocol.DownloaderProgressProtocol
-import DownloaderProgressProtocol.{Start, Read}
+import org.dbpedia.extraction.dump.download.actors.message.DownloaderProgressMessage
+import DownloaderProgressMessage.{Start, Read}
 import Counter.getContentLength
 
 /**

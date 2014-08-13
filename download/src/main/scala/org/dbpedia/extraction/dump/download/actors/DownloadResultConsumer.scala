@@ -1,7 +1,7 @@
 package org.dbpedia.extraction.dump.download.actors
 
 import akka.actor.{ActorLogging, Actor}
-import org.dbpedia.extraction.dump.download.actors.protocol.GeneralProtocol.ShutdownCluster
+import org.dbpedia.extraction.dump.download.actors.message.GeneralMessage.ShutdownCluster
 import akka.contrib.pattern.{DistributedPubSubExtension, DistributedPubSubMediator}
 
 /**

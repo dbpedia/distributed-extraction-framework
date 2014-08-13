@@ -18,9 +18,9 @@ case class MirroredDownloadJob(baseUrl: URL, job: DownloadJob)
  * Download job used by the actor framework.
  *
  * @param downloadId Unique job ID
- * @param info URL information
+ * @param file URL information
  */
-case class DownloadJob(downloadId: String, info: DumpFile)
+case class DownloadJob(downloadId: String, file: DumpFile)
 
 /**
  * Download information for single wiki dump file.

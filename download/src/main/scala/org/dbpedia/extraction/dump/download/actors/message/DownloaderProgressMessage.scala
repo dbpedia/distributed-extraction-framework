@@ -1,6 +1,6 @@
-package org.dbpedia.extraction.dump.download.actors.protocol
+package org.dbpedia.extraction.dump.download.actors.message
 
-object DownloaderProgressProtocol
+object DownloaderProgressMessage
 {
   // From Downloader or DownloadJobRunner to DownloadProgressTracker
   case class Read(bytesRead: Long)

@@ -14,8 +14,8 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import org.dbpedia.extraction.dump.download.actors.Worker.DownloadComplete
-import org.dbpedia.extraction.dump.download.actors.protocol.DownloaderProgressProtocol
-import DownloaderProgressProtocol.{ProgressEnd, Stop}
+import org.dbpedia.extraction.dump.download.actors.message.DownloaderProgressMessage
+import DownloaderProgressMessage.{ProgressEnd, Stop}
 
 /**
  * This actor is used by Worker to run a download job.

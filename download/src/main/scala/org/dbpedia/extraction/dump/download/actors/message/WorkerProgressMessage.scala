@@ -1,6 +1,6 @@
-package org.dbpedia.extraction.dump.download.actors.protocol
+package org.dbpedia.extraction.dump.download.actors.message
 
-object WorkerProgressProtocol
+object WorkerProgressMessage
 {
   // DownloadProgressTracker to Worker
   case class Progress(bytes: Long)

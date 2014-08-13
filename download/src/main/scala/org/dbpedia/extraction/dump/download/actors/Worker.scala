@@ -7,8 +7,8 @@ import akka.actor.SupervisorStrategy.{Stop, Restart}
 import akka.contrib.pattern.ClusterClient.SendToAll
 import scala.Some
 import akka.actor.OneForOneStrategy
-import org.dbpedia.extraction.dump.download.actors.protocol.{WorkerProgressProtocol, MasterWorkerProtocol, GeneralProtocol}
-import GeneralProtocol.ShutdownCluster
+import org.dbpedia.extraction.dump.download.actors.message.{WorkerProgressMessage, MasterWorkerMessage, GeneralMessage}
+import GeneralMessage.ShutdownCluster
 import org.dbpedia.extraction.dump.download.actors.Worker.DownloadComplete
 
 /**
@@ -20,8 +20,8 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
   extends Actor with ActorLogging
 {
 
-  import MasterWorkerProtocol._
-  import WorkerProgressProtocol._
+  import MasterWorkerMessage._
+  import WorkerProgressMessage._
   import context.dispatcher
 
   def scheduler = context.system.scheduler

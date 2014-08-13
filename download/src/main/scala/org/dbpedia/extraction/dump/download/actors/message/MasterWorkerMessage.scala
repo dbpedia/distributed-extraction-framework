@@ -1,6 +1,6 @@
-package org.dbpedia.extraction.dump.download.actors.protocol
+package org.dbpedia.extraction.dump.download.actors.message
 
-object MasterWorkerProtocol
+object MasterWorkerMessage
 {
   // Messages from Workers
   case class RegisterWorker(workerId: String)

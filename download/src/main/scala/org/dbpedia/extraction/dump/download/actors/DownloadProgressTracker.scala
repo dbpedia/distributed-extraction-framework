@@ -3,7 +3,7 @@ package org.dbpedia.extraction.dump.download.actors
 import akka.actor.{ActorLogging, Cancellable, ActorRef, Actor}
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
-import org.dbpedia.extraction.dump.download.actors.protocol.{DownloaderProgressProtocol, WorkerProgressProtocol}
+import org.dbpedia.extraction.dump.download.actors.message.{DownloaderProgressMessage, WorkerProgressMessage}
 
 /**
  * An actor that receives Start and Read messages, and relays ProgressStart and Progress messages to the client.
@@ -14,8 +14,8 @@ import org.dbpedia.extraction.dump.download.actors.protocol.{DownloaderProgressP
  */
 class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) extends Actor with ActorLogging
 {
-  import WorkerProgressProtocol._
-  import DownloaderProgressProtocol._
+  import WorkerProgressMessage._
+  import DownloaderProgressMessage._
   import context.dispatcher
 
   def scheduler = context.system.scheduler

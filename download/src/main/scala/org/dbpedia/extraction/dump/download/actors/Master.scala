@@ -4,10 +4,10 @@ import scala.concurrent.duration.{Deadline, FiniteDuration}
 import akka.actor._
 import akka.contrib.pattern.{DistributedPubSubMediator, DistributedPubSubExtension}
 import scala.collection.immutable.Queue
-import org.dbpedia.extraction.dump.download.actors.protocol.GeneralProtocol.ShutdownCluster
+import org.dbpedia.extraction.dump.download.actors.message.GeneralMessage.ShutdownCluster
 import scala.Some
 import akka.contrib.pattern.DistributedPubSubMediator.Put
-import org.dbpedia.extraction.dump.download.actors.protocol.MasterWorkerProtocol
+import org.dbpedia.extraction.dump.download.actors.message.MasterWorkerMessage
 import java.net.URL
 
 /**
@@ -22,7 +22,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
 {
 
   import Master._
-  import MasterWorkerProtocol._
+  import MasterWorkerMessage._
   import context.dispatcher
 
   def scheduler = context.system.scheduler
@@ -131,12 +131,12 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
 
           mediator ! DistributedPubSubMediator.Publish(ResultsTopic, DownloadResult(downloadId, outputPath, totalBytes))
 
-          sender ! MasterWorkerProtocol.Ack(downloadId)
+          sender ! MasterWorkerMessage.Ack(downloadId)
         case _ =>
           if (downloadIds.contains(downloadId))
           {
             // previous Ack was lost, confirm again that this is done
-            sender ! MasterWorkerProtocol.Ack(downloadId)
+            sender ! MasterWorkerMessage.Ack(downloadId)
           }
       }
 
