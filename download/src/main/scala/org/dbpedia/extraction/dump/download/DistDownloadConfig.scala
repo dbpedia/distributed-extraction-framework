@@ -66,7 +66,17 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   /**
    * Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
    */
-  var threadsPerMirror = 2
+  var threadsPerMirror: Int = 2
+
+  /**
+   * Slave hostnames. By default consists only of 127.0.0.1.
+   */
+  var slaves: Array[String] = Array("127.0.0.1")
+
+  /**
+   * Master host. By default set to 127.0.0.1.
+   */
+  var master: String = "127.0.0.1"
 
   /** Path to hadoop core-site.xml, hadoop hdfs-site.xml and hadoop mapred-site.xml respectively */
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
@@ -89,6 +99,8 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
       case Arg("base-dir", path) => distBaseDir = path
       case Arg("threads-per-mirror", threads) => threadsPerMirror = toInt(threads, 1, Int.MaxValue, arg)
       case Arg("sequential-languages", bool) => sequentialLanguages = toBoolean(bool, arg)
+      case Arg("master", host) => master = host
+      case Arg("slaves", hosts) => slaves = hosts.split(",")
       case Arg("distconfig", path) =>
         val file = resolveFile(dir, path)
         if (!file.isFile) throw Usage("Invalid file " + file, arg)
@@ -200,7 +212,7 @@ distconfig=/example/path/file.cfg
   in the format given here. Absolute or relative path. File paths in that config file will be interpreted
   relative to the config file.
 mirrors=http://dumps.wikimedia.org/
-  List of mirrors to download from. These will be comma-separated URLs.
+  List of mirrors to download from in the form of comma-separated URLs.
   Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://dumps.wikimedia.your.org/
 threads-per-mirror=2
   Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
@@ -215,6 +227,12 @@ hadoop-hdfssite-xml-path=/path/to/hdfs-site.xml
   Path to hadoop hdfs-site.xml configuration file.
 hadoop-mapredsite-xml-path=/path/to/mapred-site.xml
   Path to hadoop mapred-site.xml configuration file.
+master=127.0.0.1
+  Master node host.
+slaves=127.0.0.1
+  List of comma-separated slave hosts. Example: slaves=node1,node2,node3
+extraction-framework-home=/path/to/distributed-extraction-framework
+  Absolute path to the distributed extraction framework (containing this module) in all nodes.
                                  """ /* empty line */
     println(usage)
 
