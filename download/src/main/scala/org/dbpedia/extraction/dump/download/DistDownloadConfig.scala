@@ -6,6 +6,8 @@ import java.io.File
 import scala.io.{Codec, Source}
 import org.dbpedia.extraction.util.HadoopConfigurable
 import java.net.URL
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 /**
  * Distributed download and general download configuration
@@ -69,6 +71,22 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   var threadsPerMirror: Int = 2
 
   /**
+   * Progress report time interval - the driver node receives real-time progress reports for running downloads
+   * from the workers. If a worker fails to send a progress report of the current download under the given timeout
+   * (the timeout is usually set to something like progressReportInterval + 2 to be safe) the download job will be marked
+   * as failed and inserted back into the pending download queue.
+   *
+   * This is 15 seconds by default.
+   */
+  var progressReportInterval: FiniteDuration = 15 seconds
+
+  /**
+   * Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
+   * the configured Hadoop file system.
+   */
+  var localTempDir: File = new File("/tmp")
+
+  /**
    * Slave hostnames. By default consists only of 127.0.0.1.
    */
   var slaves: Array[String] = Array("127.0.0.1")
@@ -77,6 +95,18 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * Master host. By default set to 127.0.0.1.
    */
   var master: String = "127.0.0.1"
+
+  /**
+   * The hostname or IP to bind to.
+   */
+  var bindHost: String = "127.0.0.1"
+
+  /**
+   * Absolute path to the distributed extraction framework (containing this module) in all nodes
+   */
+  var homeDir: String = null
+
+  def isMaster: Boolean = bindHost == master
 
   /** Path to hadoop core-site.xml, hadoop hdfs-site.xml and hadoop mapred-site.xml respectively */
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
@@ -101,12 +131,20 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
       case Arg("sequential-languages", bool) => sequentialLanguages = toBoolean(bool, arg)
       case Arg("master", host) => master = host
       case Arg("slaves", hosts) => slaves = hosts.split(",")
+      case Arg("extraction-framework-home", path) => homeDir = path
+      case Arg("bind-host", host) => bindHost = host
       case Arg("distconfig", path) =>
         val file = resolveFile(dir, path)
         if (!file.isFile) throw Usage("Invalid file " + file, arg)
         withSource(file)(source => parse(file.getParentFile, source.getLines()))
       case _ => //throw Usage("Invalid argument '" + arg + "'")
     }
+
+    if(bindHost != master && !slaves.contains(bindHost))
+      throw Usage(s"Argument bind-host=$bindHost is neither master nor a slave!")
+
+    if(homeDir == null)
+      throw Usage(s"Argument extraction-framework-home not specified!")
 
     // First checks the Path obtained from distributed download config, then the general download config file if the former is null
     baseDir = checkPathExists(Option(
@@ -212,8 +250,9 @@ distconfig=/example/path/file.cfg
   in the format given here. Absolute or relative path. File paths in that config file will be interpreted
   relative to the config file.
 mirrors=http://dumps.wikimedia.org/
-  List of mirrors to download from in the form of comma-separated URLs.
-  Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://dumps.wikimedia.your.org/
+  List of mirrors to download from in the form of comma-separated URLs. Choose from the list of mirrors at:
+  http://meta.wikimedia.org/wiki/Mirroring_Wikimedia_project_XML_dumps#Current_Mirrors
+  Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://ftp.fi.muni.cz/pub/wikimedia/,http://dumps.wikimedia.your.org/
 threads-per-mirror=2
   Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
 sequential-languages=false
@@ -231,8 +270,21 @@ master=127.0.0.1
   Master node host.
 slaves=127.0.0.1
   List of comma-separated slave hosts. Example: slaves=node1,node2,node3
+bind-host=127.0.0.1
+  The hostname or IP to bind to. This must be changed to the local network IP or hostname of machine the jar is executed upon.
+  NOTE: *bind-host* must be either set to the hostname value in *master*, or either of the hostnames in *slaves* depending upon
+  where it is being run.
+
+  For example, in a 3-node cluster with 1 master node node0 and 2 slave nodes node1, node2:
+  master=node0
+  slaves=node1,node2
+
+  While running the jar on node0, bind-host=node0 (this tells the framework to fire up the master here).
+  While running on node1, bind-host=node1 and so on.
+
 extraction-framework-home=/path/to/distributed-extraction-framework
-  Absolute path to the distributed extraction framework (containing this module) in all nodes.
+  This must be changed to the absolute path to the distributed extraction framework (containing this module)
+  in all nodes. No default value is set.
                                  """ /* empty line */
     println(usage)
 
