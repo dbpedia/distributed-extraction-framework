@@ -1,7 +1,6 @@
 package org.dbpedia.extraction.dump.download.actors
 
 import java.net.URL
-import java.io.File
 import org.dbpedia.extraction.util.Language
 import org.apache.hadoop.fs.Path
 
