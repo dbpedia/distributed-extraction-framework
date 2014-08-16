@@ -4,12 +4,16 @@ import akka.actor._
 import scala.concurrent.duration._
 import java.util.UUID
 import akka.actor.SupervisorStrategy.{Stop, Restart}
-import akka.contrib.pattern.ClusterClient.SendToAll
+import org.dbpedia.extraction.dump.download.actors.message._
+import GeneralMessage.ShutdownCluster
+import scala.language.postfixOps
+import org.dbpedia.extraction.dump.download.actors.Worker.DownloadComplete
 import scala.Some
 import akka.actor.OneForOneStrategy
-import org.dbpedia.extraction.dump.download.actors.message.{WorkerProgressMessage, MasterWorkerMessage, GeneralMessage}
-import GeneralMessage.ShutdownCluster
-import org.dbpedia.extraction.dump.download.actors.Worker.DownloadComplete
+import akka.contrib.pattern.ClusterClient.SendToAll
+import org.dbpedia.extraction.dump.download.actors.message.DownloadJob
+import akka.actor.Terminated
+import akka.actor.DeathPactException
 
 /**
  * Worker actor that runs on each worker node.
@@ -40,7 +44,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
   private var progressDelays = 0
   private val MaxProgressDelays = 5
 
-  def workId: String = currentDownloadId match
+  def downloadId: String = currentDownloadId match
   {
     case Some(workId) => workId
     case None => throw new IllegalStateException("Not working")
@@ -65,10 +69,13 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
   {
     case ShutdownCluster =>
       sendToMaster(RemoveWorker(workerId))
-      registerTask.cancel()
-      context.stop(downloadRunner)
-      context.stop(self)
-      context.system.shutdown()
+      scheduler.scheduleOnce(5 seconds)
+      {
+        registerTask.cancel()
+        context.stop(downloadRunner)
+        context.stop(self)
+        context.system.shutdown()
+      }
 
     case DownloadIsReady =>
       sendToMaster(WorkerRequestsDownload(workerId))
@@ -76,19 +83,22 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
     case job @ MirroredDownloadJob(_, DownloadJob(downloadId, _)) =>
       log.info("Got download job: {}", job)
       currentDownloadId = Some(downloadId)
+      currentBytes = 0
+      progressDelays = 0
       downloadRunner ! job
       context.become(working)
   }
 
   def working: Receive =
   {
-    case ProgressStart(total) =>
+    case p @ ProgressStart(total) =>
       if(totalBytes == 0) totalBytes = total
+      sendToMaster(ProgressReport(workerId, downloadId, p))
 
-    case Progress(bytes) =>
+    case p @ Progress(bytes) =>
       if(bytes > currentBytes) currentBytes = bytes else progressDelays += 1
-      sendToMaster(ProgressReport(workerId, bytes))
-      if(progressDelays > MaxProgressDelays)
+      sendToMaster(ProgressReport(workerId, downloadId, p))
+      if(progressDelays > MaxProgressDelays && totalBytes != bytes)
       {
         val delay = progressDelays * downloadRunnerProps.args(0).asInstanceOf[FiniteDuration].toSeconds
         throw new Exception(s"Download progress has stagnated. No update occurred in $delay seconds!")
@@ -96,7 +106,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 
     case DownloadComplete(output, bytes) =>
       log.info("Download is complete. Output file: {}. Total bytes: {}", output, bytes)
-      sendToMaster(DownloadIsDone(workerId, workId, output, bytes))
+      sendToMaster(DownloadIsDone(workerId, downloadId, output, bytes))
       context.setReceiveTimeout(10.seconds)
       context.become(waitForDownloadIsDoneAck(output, bytes))
 
@@ -109,13 +119,13 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 
   def waitForDownloadIsDoneAck(outputFilePath: String, bytes: Long): Receive =
   {
-    case Ack(id) if id == workId =>
+    case Ack(id) if id == downloadId =>
       sendToMaster(WorkerRequestsDownload(workerId))
       context.setReceiveTimeout(Duration.Undefined)
       context.become(idle)
     case ReceiveTimeout =>
       log.info("No ack from master, retrying")
-      sendToMaster(DownloadIsDone(workerId, workId, outputFilePath, bytes))
+      sendToMaster(DownloadIsDone(workerId, downloadId, outputFilePath, bytes))
   }
 
   override def unhandled(message: Any): Unit = message match
