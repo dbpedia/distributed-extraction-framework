@@ -1,9 +1,10 @@
 package org.dbpedia.extraction.dump.download.actors
 
-import akka.actor.{ActorLogging, Cancellable, ActorRef, Actor}
+import akka.actor._
 import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.FiniteDuration
 import org.dbpedia.extraction.dump.download.actors.message.{DownloaderProgressMessage, WorkerProgressMessage}
+import scala.Some
 
 /**
  * An actor that receives Start and Read messages, and relays ProgressStart and Progress messages to the client.
@@ -16,6 +17,7 @@ class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) 
 {
   import WorkerProgressMessage._
   import DownloaderProgressMessage._
+  import DownloadProgressTracker._
   import context.dispatcher
 
   def scheduler = context.system.scheduler
@@ -36,7 +38,7 @@ class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) 
       }
       else
       {
-        progressTaskOption = Some(scheduler.schedule(notifyInterval, notifyInterval, client, Progress(bytesRead.get())))
+        progressTaskOption = Some(scheduler.schedule(notifyInterval, notifyInterval, self, Tick))
         client ! ProgressStart(total)
       }
 
@@ -56,5 +58,13 @@ class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) 
         case _ =>
           log.info("ProgressTracker is already stopped!")
       }
+
+    case Tick =>
+      client ! Progress(bytesRead.get())
   }
+}
+
+object DownloadProgressTracker
+{
+  case object Tick
 }
