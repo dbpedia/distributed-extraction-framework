@@ -26,7 +26,7 @@ import scala.util.{Failure, Success}
  * @param tempDir temporary directory on local file system to download to (before being moved to HDFS)
  * @param unzip true if file should be unzipped while downloading, false otherwise
  */
-class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: Configuration, tempDir: File, unzip: Boolean) extends Actor
+class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: Configuration, tempDir: File, unzip: Boolean) extends Actor with ActorLogging
 {
   implicit private val _hadoopConfiguration = hadoopConfiguration
   implicit private val progressStopTimeout = Timeout(5 seconds)
@@ -61,9 +61,9 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
       println(dateDir.getSchemeWithFileName)
 
       Future(downloader.downloadTo(url, tempDir)).
-      onSuccess
+      onComplete
       {
-        case file =>
+        case Success(file) =>
           val fs = dateDir.getFileSystem(hadoopConfiguration)
           val outputPath = dateDir.resolve(file.getName)
           fs.moveFromLocalFile(new Path(file.toURI), outputPath)
@@ -72,6 +72,9 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
               case ProgressEnd(totalBytes) =>
                 s ! DownloadComplete(outputPath.getSchemeWithFileName, totalBytes)
             }
+        case Failure(t) =>
+          log.info(t.getMessage)
+          progress ! Stop
       }
   }
 }
