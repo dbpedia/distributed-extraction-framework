@@ -1,10 +1,10 @@
 package org.dbpedia.extraction.dump.download.actors
 
-import akka.actor.{Props, Actor}
+import akka.actor.{ActorLogging, Props, Actor}
 import akka.pattern.ask
 import akka.util.Timeout
 import org.dbpedia.extraction.dump.download.{Unzip, ActoredCounter, FileDownloader}
-import org.dbpedia.extraction.util.Finder
+import org.dbpedia.extraction.util.{Language, Finder}
 import java.net.URL
 import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.fs.Path
@@ -14,8 +14,9 @@ import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import org.dbpedia.extraction.dump.download.actors.Worker.DownloadComplete
-import org.dbpedia.extraction.dump.download.actors.message.DownloaderProgressMessage
+import org.dbpedia.extraction.dump.download.actors.message.{DumpFile, DownloadJob, MirroredDownloadJob, DownloaderProgressMessage}
 import DownloaderProgressMessage.{ProgressEnd, Stop}
+import scala.util.{Failure, Success}
 
 /**
  * This actor is used by Worker to run a download job.
@@ -43,11 +44,12 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
 
   def receive =
   {
-    case MirroredDownloadJob(mirror, DownloadJob(_, DumpFile(baseDir, wikiName, lang, date, fileName))) =>
+    case MirroredDownloadJob(mirror, DownloadJob(_, DumpFile(base, wikiName, lang, date, fileName))) =>
       val s = sender()
       import context.dispatcher
 
-      val finder = new Finder[Path](baseDir, lang, wikiName)
+      val baseDir = new Path(base)
+      val finder = new Finder[Path](baseDir, Language(lang), wikiName)
       val wiki = finder.wikiName
       val dateDir = baseDir.resolve(wiki).resolve(date)
       if (!dateDir.exists && !dateDir.mkdirs) throw new Exception("Target directory [" + dateDir.getSchemeWithFileName + "] does not exist and cannot be created")
