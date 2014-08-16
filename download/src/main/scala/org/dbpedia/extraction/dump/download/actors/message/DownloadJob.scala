@@ -1,8 +1,15 @@
-package org.dbpedia.extraction.dump.download.actors
+package org.dbpedia.extraction.dump.download.actors.message
 
 import java.net.URL
-import org.dbpedia.extraction.util.Language
-import org.apache.hadoop.fs.Path
+import org.dbpedia.extraction.dump.download.actors.message.WorkerProgressMessage.ProgressMessage
+
+/**
+ * Download job used by the actor framework.
+ *
+ * @param downloadId Unique job ID
+ * @param file URL information
+ */
+case class DownloadJob(downloadId: String, file: DumpFile)
 
 /**
  * Download job wrapped along with the mirror to use for downloading.
@@ -14,23 +21,15 @@ import org.apache.hadoop.fs.Path
 case class MirroredDownloadJob(baseUrl: URL, job: DownloadJob)
 
 /**
- * Download job used by the actor framework.
- *
- * @param downloadId Unique job ID
- * @param file URL information
- */
-case class DownloadJob(downloadId: String, file: DumpFile)
-
-/**
  * Download information for single wiki dump file.
  *
  * @param baseDir Base directory on Hadoop file system (HDFS for distributed downloads)
  * @param wikiSuffix Wiki name suffix (eg. wiki)
- * @param language Wiki language
+ * @param language Language wikiCode
  * @param date YYYYMMDD date string
- * @param fileName File name to save the URL to
+ * @param fileName URL file name
  */
-case class DumpFile(baseDir: Path, wikiSuffix: String, language: Language, date: String, fileName: String)
+case class DumpFile(baseDir: String, wikiSuffix: String, language: String, date: String, fileName: String)
 
 /**
  * Download job used by the actor framework.
@@ -42,9 +41,9 @@ case class DumpFile(baseDir: Path, wikiSuffix: String, language: Language, date:
 case class DownloadResult(job: MirroredDownloadJob, outputPath: String, bytes: Long)
 
 /**
- * Progress reports sent from Master to DownloadResultConsumer.
+ * Progress reports published by Master.
  *
- * @param job MirroredDownloadJob
- * @param bytes Number of bytes downloaded till now
+ * @param downloadId Unique job ID
+ * @param progress Progress message
  */
-case class DownloadProgress(job: MirroredDownloadJob, bytes: Long)
+case class DownloadProgress(downloadId: String, progress: ProgressMessage)
