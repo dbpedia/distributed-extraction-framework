@@ -8,6 +8,8 @@ import org.dbpedia.extraction.util.HadoopConfigurable
 import java.net.URL
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import akka.actor.{AddressFromURIString, Address}
+import scala.collection.mutable.ListBuffer
 
 /**
  * Distributed download and general download configuration
@@ -15,16 +17,11 @@ import scala.language.postfixOps
  */
 class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurable
 {
+
   import DownloadConfig._
 
   private val downloadConfig = new DownloadConfig()
-
-  downloadConfig.parse(null, args) // parse the general config file
-  parse(null, args) // parse the distributed downloads config file
-  if (baseDir == null) throw Usage("No target directory")
-  if ((languages.nonEmpty || ranges.nonEmpty) && baseUrl == null) throw Usage("No base URL")
-  if (languages.isEmpty && ranges.isEmpty) throw Usage("No files to download")
-  if (!baseDir.exists && !baseDir.mkdirs()) throw Usage("Target directory '" + baseDir + "' does not exist and cannot be created")
+  private val generalArgs = new ListBuffer[String]()
 
   def wikiName = downloadConfig.wikiName
 
@@ -71,6 +68,11 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   var threadsPerMirror: Int = 2
 
   /**
+   * Number of workers to run per slave. Set to 2 by default.
+   */
+  var workersPerSlave: Int = 2
+
+  /**
    * Progress report time interval - the driver node receives real-time progress reports for running downloads
    * from the workers. If a worker fails to send a progress report of the current download under the given timeout
    * (the timeout is usually set to something like progressReportInterval + 2 to be safe) the download job will be marked
@@ -78,7 +80,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    *
    * This is 15 seconds by default.
    */
-  var progressReportInterval: FiniteDuration = 15 seconds
+  var progressReportInterval: FiniteDuration = 2 seconds
 
   /**
    * Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
@@ -102,15 +104,70 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   var bindHost: String = "127.0.0.1"
 
   /**
+   * Akka join address on the driver node. This is where the workers connect to.
+   * This must be defined when starting up a worker.
+   */
+  var joinAddress: Option[Address] = None
+
+  /**
+   * Current logged in user name, also the user name used to connect to cluster nodes.
+   */
+  var userName: String = System.getProperty("user.name")
+
+  /**
+   * Optional identity file to connect to cluster nodes via SSH.
+   */
+  var privateKey: Option[String] = None
+
+  /**
+   * Optional passphrase for SSH private key.
+   */
+  var sshPassphrase: Option[String] = None
+
+  /**
    * Absolute path to the distributed extraction framework (containing this module) in all nodes
    */
   var homeDir: String = null
 
-  def isMaster: Boolean = bindHost == master
+  def isMaster: Boolean = bindHost == master && !joinAddress.isDefined
 
   /** Path to hadoop core-site.xml, hadoop hdfs-site.xml and hadoop mapred-site.xml respectively */
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
     parseHadoopConfigs(null, args)
+
+  parse(null, args) // parse the distributed download config file/variables
+
+  if (bindHost != master && !slaves.contains(bindHost))
+    throw Usage(s"Config variable bind-host=$bindHost is neither master nor a slave!")
+
+  if (homeDir == null)
+    throw Usage("Config variable extraction-framework-home not specified!")
+
+  if (!isMaster && !joinAddress.isDefined)
+    throw Usage("Config variable join needs to be specified to start a worker!")
+
+  downloadConfig.parse(null, generalArgs.toList) // parse the general config file
+
+  if ((languages.nonEmpty || ranges.nonEmpty) && baseUrl == null) throw Usage("No base URL")
+  if (languages.isEmpty && ranges.isEmpty) throw Usage("No files to download")
+
+  // First checks the Path obtained from distributed download config, then the general download config file if the former is null
+  baseDir = checkPathExists(Option(if (baseDir != null)
+                                   {
+                                     baseDir
+                                   }
+                                   else
+                                   {
+                                     new Path({
+                                                if (downloadConfig.baseDir == null) throw Usage("No target directory")
+                                                downloadConfig.baseDir.getPath
+                                              })
+                                   }
+                                  ), pathMustExist = true
+                           ).get
+
+  if (!baseDir.exists && !baseDir.mkdirs())
+    throw Usage("Target directory '" + baseDir.getSchemeWithFileName + "' does not exist and cannot be created")
 
   /**
    * @param dir Context directory. Config file and base dir names will be resolved relative to
@@ -120,44 +177,30 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    */
   def parse(dir: File, args: TraversableOnce[String])
   {
-    var distBaseDir: String = null
-
+    // Parse the distributed config variables and accumulate the remaining variables in the generalArgs list.
     for (a <- args; arg = a.trim) arg match
     {
-      case Ignored(_) => // ignore
+      case Ignored(_) => // ignore comments
       case Arg("mirrors", urls) => mirrors = urls.split(",").map(url => toURL(if (url endsWith "/") url else url + "/", arg)) // must have slash at end
-      case Arg("base-dir", path) => distBaseDir = path
+      case Arg("base-dir", path) => baseDir = new Path(path)
       case Arg("threads-per-mirror", threads) => threadsPerMirror = toInt(threads, 1, Int.MaxValue, arg)
+      case Arg("workers-per-slave", workers) => workersPerSlave = toInt(workers, 1, Int.MaxValue, arg)
       case Arg("sequential-languages", bool) => sequentialLanguages = toBoolean(bool, arg)
+      case Arg("progress-interval", interval) => progressReportInterval = toInt(interval, 1, Int.MaxValue, arg).seconds
+      case Arg("local-temp-dir", file) => localTempDir = new File(file)
       case Arg("master", host) => master = host
       case Arg("slaves", hosts) => slaves = hosts.split(",")
       case Arg("extraction-framework-home", path) => homeDir = path
       case Arg("bind-host", host) => bindHost = host
+      case Arg("join", uri) => joinAddress = Some(AddressFromURIString(uri))
+      case Arg("private-key", file) => privateKey = Some(file)
+      case Arg("ssh-passphrase", pass) => sshPassphrase = Some(pass)
       case Arg("distconfig", path) =>
         val file = resolveFile(dir, path)
         if (!file.isFile) throw Usage("Invalid file " + file, arg)
         withSource(file)(source => parse(file.getParentFile, source.getLines()))
-      case _ => //throw Usage("Invalid argument '" + arg + "'")
+      case other => generalArgs += other
     }
-
-    if(bindHost != master && !slaves.contains(bindHost))
-      throw Usage(s"Argument bind-host=$bindHost is neither master nor a slave!")
-
-    if(homeDir == null)
-      throw Usage(s"Argument extraction-framework-home not specified!")
-
-    // First checks the Path obtained from distributed download config, then the general download config file if the former is null
-    baseDir = checkPathExists(Option(
-                                      new Path(if (distBaseDir != null)
-                                               {
-                                                 distBaseDir
-                                               }
-                                               else
-                                               {
-                                                 if (downloadConfig.baseDir == null) throw Usage("No target directory")
-                                                 downloadConfig.baseDir.getPath
-                                               })
-                                    ), pathMustExist = true).get
   }
 
   /**
@@ -200,9 +243,11 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   }
 }
 
-object Usage {
-  def apply(msg: String, arg: String = null, cause: Throwable = null): Exception = {
-    val message = if (arg == null) msg else msg+" in '"+arg+"'"
+object Usage
+{
+  def apply(msg: String, arg: String = null, cause: Throwable = null): Exception =
+  {
+    val message = if (arg == null) msg else msg + " in '" + arg + "'"
 
     println(message)
     val usage = /* empty line */ """
@@ -212,8 +257,10 @@ General download configuration
 ==============================
 config=/example/path/file.cfg
   Path to exisiting UTF-8 text file whose lines contain arguments in the format given here.
-  Absolute or relative path. File paths in that config file will be interpreted relative to
-  the config file.
+  Absolute or relative path. File paths in that config file will be interpreted relative to the
+  config file. Note that this file must be present in the same path in all nodes of the cluster.
+base-url=http://dumps.wikimedia.org/
+  Base URL of dump server/mirror to use when building the list of dump files/URLs. Required.
 base-dir=/example/path
   Path to existing target directory (on local file system or HDFS). Required.
 download-dates=20120530-20120610
@@ -255,6 +302,22 @@ mirrors=http://dumps.wikimedia.org/
   Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://ftp.fi.muni.cz/pub/wikimedia/,http://dumps.wikimedia.your.org/
 threads-per-mirror=2
   Number of simultaneous downloads from each mirror per slave node. Set to 2 by default.
+workers-per-slave=2
+  Number of workers to run per slave. This is set to 2 by default.
+  Setting it to (no. of mirrors) * threads-per-mirror is recommended for exploiting maximum parallelism. On the other hand,
+  if your whole cluster has only one public facing IP it is better to set this to a low number like 1.
+progress-interval
+  Progress report time interval - the driver node receives real-time progress reports for running downloads from the workers.
+  If a worker fails to send a progress report of the current download under the given timeout (the timeout is set to something
+  like progressReportInterval + 2 to be safe) the download job will be marked as failed and inserted back into the pending
+  download queue. This is 15 seconds by default.
+local-temp-dir
+  Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
+  the configured Hadoop file system.
+private-key
+  Optional identity file to connect to cluster nodes via SSH.
+ssh-passphrase
+  Optional passphrase for SSH private key.
 sequential-languages=false
   If each language consists of multiple dump files (eg. enwiki-latest-pages-articles1.xml-p000000010p000010000.bz2)
   they are downloaded in parallel. Multiple languages are downloaded in parallel too, giving us 2 levels of
@@ -281,9 +344,12 @@ bind-host=127.0.0.1
 
   While running the jar on node0, bind-host=node0 (this tells the framework to fire up the master here).
   While running on node1, bind-host=node1 and so on.
-
+join=akka.tcp://Workers@hostname:port
+  This variable needs to be specified when starting up a worker manually. Do not use this variable unless you know what you're
+  doing. The driver node automatically starts up workers on the slaves and takes care of this variable. Never set this variable
+  when starting up the master/driver.
 extraction-framework-home=/path/to/distributed-extraction-framework
-  This must be changed to the absolute path to the distributed extraction framework (containing this module)
+  This must be set to the absolute path to the distributed extraction framework (containing this module)
   in all nodes. No default value is set.
                                  """ /* empty line */
     println(usage)
