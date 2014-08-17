@@ -31,7 +31,7 @@ class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) 
 
   def receive =
   {
-    case Start(total) =>
+    case Start(total) => // Sent by ActoredCounter to signal start of download
       if (0 != bytesRead.get() || progressTaskOption.isDefined)
       {
         log.info("ProgressTracker is already started!")
@@ -42,7 +42,7 @@ class DownloadProgressTracker(client: ActorRef, notifyInterval: FiniteDuration) 
         client ! ProgressStart(total)
       }
 
-    case Read(bytes) =>
+    case Read(bytes) => // Sent by ActoredCounter to signal bytes read
       bytesRead.set(bytes)
 
     case Stop =>

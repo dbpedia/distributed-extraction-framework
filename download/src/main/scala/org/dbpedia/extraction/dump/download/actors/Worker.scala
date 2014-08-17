@@ -16,9 +16,8 @@ import akka.actor.Terminated
 import akka.actor.DeathPactException
 
 /**
- * Worker actor that runs on each worker node.
- *
- * TODO: Add documentation
+ * Worker actor that runs on each worker node. This dispatches a download job to a child DownloadJobRunner actor
+ * which manages download and a DownloadProgressTracker to send progress reports back to the Worker.
  */
 class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterval: FiniteDuration)
   extends Actor with ActorLogging
@@ -32,6 +31,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 
   val workerId = UUID.randomUUID().toString
 
+  // Register to the master at specific intervals.
   val registerTask = context.system.scheduler.schedule(0.seconds, registerInterval, clusterClient,
                                                        SendToAll("/user/master/active", RegisterWorker(workerId)))
 
@@ -58,6 +58,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
       case _: Exception =>
         currentDownloadId foreach (workId => sendToMaster(DownloadFailed(workerId, workId)))
         context.become(idle)
+        // registerTask.cancel() is called when processing ShutdownCluster, so no point restarting if we're shutting down.
         if (registerTask.isCancelled) Stop else Restart
     }
 
@@ -67,7 +68,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 
   def idle: Receive =
   {
-    case ShutdownCluster =>
+    case ShutdownCluster => // Master sends ShutdownCluster
       sendToMaster(RemoveWorker(workerId))
       scheduler.scheduleOnce(5 seconds)
       {
@@ -77,10 +78,10 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
         context.system.shutdown()
       }
 
-    case DownloadIsReady =>
+    case DownloadIsReady => // begin 3-way handshake to get download job from master
       sendToMaster(WorkerRequestsDownload(workerId))
 
-    case job @ MirroredDownloadJob(_, DownloadJob(downloadId, _)) =>
+    case job @ MirroredDownloadJob(_, DownloadJob(downloadId, _)) => // receive new download job
       log.info("Got download job: {}", job)
       currentDownloadId = Some(downloadId)
       currentBytes = 0
@@ -92,29 +93,32 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
   def working: Receive =
   {
     case p @ ProgressStart(total) =>
-      if(totalBytes == 0) totalBytes = total
       sendToMaster(ProgressReport(workerId, downloadId, p))
+      if(totalBytes == 0) totalBytes = total
 
     case p @ Progress(bytes) =>
-      if(bytes > currentBytes) currentBytes = bytes else progressDelays += 1
       sendToMaster(ProgressReport(workerId, downloadId, p))
-      if(progressDelays > MaxProgressDelays && totalBytes != bytes)
+
+      // check if number of bytes downloaded has increased.
+      if(bytes > currentBytes) currentBytes = bytes else progressDelays += 1
+
+      if(progressDelays > MaxProgressDelays && totalBytes != bytes) // too many progress delays?
       {
         val delay = progressDelays * downloadRunnerProps.args(0).asInstanceOf[FiniteDuration].toSeconds
         throw new Exception(s"Download progress has stagnated. No update occurred in $delay seconds!")
       }
 
-    case DownloadComplete(output, bytes) =>
+    case DownloadComplete(output, bytes) => // DownloadJobRunner sends this upon completion
       log.info("Download is complete. Output file: {}. Total bytes: {}", output, bytes)
       sendToMaster(DownloadIsDone(workerId, downloadId, output, bytes))
       context.setReceiveTimeout(10.seconds)
-      context.become(waitForDownloadIsDoneAck(output, bytes))
+      context.become(waitForDownloadIsDoneAck(output, bytes)) // Send news of finished download to Master and wait for ACK.
 
     case ShutdownCluster =>
       log.info("Yikes. Master told me to shutdown, while I'm downloading.")
 
     case _: MirroredDownloadJob =>
-      log.info("Yikes. Master told me to do download, while I'm downloading.")
+      log.info("Yikes. Master gave me a download job, while I'm downloading.")
   }
 
   def waitForDownloadIsDoneAck(outputFilePath: String, bytes: Long): Receive =
@@ -124,7 +128,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
       context.setReceiveTimeout(Duration.Undefined)
       context.become(idle)
     case ReceiveTimeout =>
-      log.info("No ack from master, retrying")
+      log.info("No ACK from master, retrying")
       sendToMaster(DownloadIsDone(workerId, downloadId, outputFilePath, bytes))
   }
 

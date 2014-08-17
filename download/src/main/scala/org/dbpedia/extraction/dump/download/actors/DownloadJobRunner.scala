@@ -44,7 +44,8 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
 
   def receive =
   {
-    case MirroredDownloadJob(mirror, DownloadJob(_, DumpFile(base, wikiName, lang, date, fileName))) =>
+    case job@MirroredDownloadJob(mirror, DownloadJob(_, DumpFile(base, wikiName, lang, date, fileName))) =>
+      log.debug("Received download job from Worker: {}", job)
       val s = sender()
       import context.dispatcher
 
@@ -56,21 +57,19 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
       if (!tempDir.exists && !tempDir.mkdirs) throw new Exception("Local temporary directory [" + tempDir + "] does not exist and cannot be created")
 
       val url = new URL(mirror, s"$wiki/$date/$wiki-$date-$fileName")
-      println(url.toString)
-      println(dateDir)
-      println(dateDir.getSchemeWithFileName)
 
       Future(downloader.downloadTo(url, tempDir)).
       onComplete
       {
         case Success(file) =>
+          // file was downloaded to tempDir; copy it to Hadoop FS.
           val fs = dateDir.getFileSystem(hadoopConfiguration)
           val outputPath = dateDir.resolve(file.getName)
           fs.moveFromLocalFile(new Path(file.toURI), outputPath)
           progress ? Stop onSuccess
             {
               case ProgressEnd(totalBytes) =>
-                s ! DownloadComplete(outputPath.getSchemeWithFileName, totalBytes)
+                s ! DownloadComplete(outputPath.getSchemeWithFileName, totalBytes) // Tell worker that download is finished
             }
         case Failure(t) =>
           log.info(t.getMessage)

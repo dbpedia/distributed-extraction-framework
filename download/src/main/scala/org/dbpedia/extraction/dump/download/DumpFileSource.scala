@@ -11,6 +11,9 @@ import org.dbpedia.extraction.dump.download.actors.message.DumpFile
 
 /**
  * Generate DumpFile objects each representing a specific wiki file to download.
+ * Most of the code was taken from LanguageDownloader (extraction-framework).
+ *
+ * TODO: Integrate this to LanguageDownloader and reuse it here (reduce code duplication)?
  */
 class DumpFileSource(languages: mutable.HashMap[Language, mutable.Set[(String, Boolean)]],
                      baseUrl: URL,

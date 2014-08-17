@@ -11,7 +11,7 @@ import akka.util.Timeout
 import org.dbpedia.extraction.dump.download.actors.message.{DumpFile, DownloadJob}
 
 /**
- * A client actor used to submit download jobs to the master.
+ * A client actor used to submit download jobs to the master. To submit a job, a DumpFile object is sent as message.
  */
 class DownloadClient extends Actor with ActorLogging
 {
