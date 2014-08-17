@@ -296,6 +296,9 @@ distconfig=/example/path/file.cfg
   Path to existing distributed download configuration text file (UTF-8) whose lines contain arguments
   in the format given here. Absolute or relative path. File paths in that config file will be interpreted
   relative to the config file.
+extraction-framework-home=/path/to/distributed-extraction-framework
+  This must be set to the absolute path to the distributed extraction framework (containing this module)
+  in all nodes. No default value is set.
 mirrors=http://dumps.wikimedia.org/
   List of mirrors to download from in the form of comma-separated URLs. Choose from the list of mirrors at:
   http://meta.wikimedia.org/wiki/Mirroring_Wikimedia_project_XML_dumps#Current_Mirrors
@@ -306,17 +309,17 @@ workers-per-slave=2
   Number of workers to run per slave. This is set to 2 by default.
   Setting it to (no. of mirrors) * threads-per-mirror is recommended for exploiting maximum parallelism. On the other hand,
   if your whole cluster has only one public facing IP it is better to set this to a low number like 1.
-progress-interval
-  Progress report time interval - the driver node receives real-time progress reports for running downloads from the workers.
+progress-interval=15
+  Progress report time interval in secs - the driver node receives real-time progress reports for running downloads from the workers.
   If a worker fails to send a progress report of the current download under the given timeout (the timeout is set to something
   like progressReportInterval + 2 to be safe) the download job will be marked as failed and inserted back into the pending
   download queue. This is 15 seconds by default.
-local-temp-dir
+local-temp-dir=/tmp
   Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
-  the configured Hadoop file system.
-private-key
+  the configured Hadoop file system. This is /tmp by default.
+private-key=/path/to/id_rsa
   Optional identity file to connect to cluster nodes via SSH.
-ssh-passphrase
+ssh-passphrase=passphrase
   Optional passphrase for SSH private key.
 sequential-languages=false
   If each language consists of multiple dump files (eg. enwiki-latest-pages-articles1.xml-p000000010p000010000.bz2)
@@ -348,9 +351,6 @@ join=akka.tcp://Workers@hostname:port
   This variable needs to be specified when starting up a worker manually. Do not use this variable unless you know what you're
   doing. The driver node automatically starts up workers on the slaves and takes care of this variable. Never set this variable
   when starting up the master/driver.
-extraction-framework-home=/path/to/distributed-extraction-framework
-  This must be set to the absolute path to the distributed extraction framework (containing this module)
-  in all nodes. No default value is set.
                                  """ /* empty line */
     println(usage)
 
