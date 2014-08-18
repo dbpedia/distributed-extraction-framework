@@ -199,7 +199,10 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
         val file = resolveFile(dir, path)
         if (!file.isFile) throw Usage("Invalid file " + file, arg)
         withSource(file)(source => parse(file.getParentFile, source.getLines()))
-      case other => generalArgs += other
+      case other if !(other.startsWith("hadoop-coresite-xml-path")
+        || other.startsWith("hadoop-hdfssite-xml-path")
+        || other.startsWith("hadoop-mapredsite-xml-path")) => generalArgs += other
+      case _ => // leave the hadoop-* stuff for parseHadoopConfigs
     }
   }
 
