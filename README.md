@@ -25,7 +25,7 @@ Add the hostnames of your slave nodes (after having downloaded Spark to all node
 
 Here's a sample `spark-env.sh` for a cluster where the slaves have 4 cores and 15G RAM each:
 ```bash
-export SCALA_HOME=/usr/share/java
+export SCALA_HOME=/usr/share/java[
 export SPARK_MEM=2500m
 export SPARK_WORKER_CORES=1
 export SPARK_WORKER_INSTANCES=4
@@ -61,7 +61,7 @@ Clone the latest version of the repo and switch to stage branch:
 
 ## Dump-based Distributed Extraction
 
-Follow the instructions given below to download data for the extractions you need to perform. An example of the download.properties file is given at `distributed/src/test/resources/download.properties`
+Follow the instructions given below to download data for the extractions you need to perform. An example of the download.properties file is given at `download/src/test/resources/download.properties`
 
 In the root directory run the following commands
 
@@ -70,22 +70,34 @@ In the root directory run the following commands
 
 **Points to keep in mind:**
 
-1. Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `distributed/src/test/resources/`.
+1. Before performing extractions you will need a config.properties file for general extraction configuration and a dist-config.properties file for the distributed framework specific configuration (Spark, Hadoop, logging etc.). Examples are given at `extraction/src/test/resources/`.
 
-2. **Important:** In the config.properties file, you may add all the extractors to it, except InfoboxExtractor which won't work correctly as of yet. There is an issue open to track this and it will be fixed soon. [1]
+2. The example `extraction/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
 
-3. The example `distributed/src/test/resources/dist-config.properties` file needs to be modified with a proper spark-home and spark-master (local[N] means N cores on the local node - you can change it to something like `spark://hostname:7077` to run it in distributed mode).
-
-4. Prefer pages-articles-multistream.bz2 files to pages-articles.bz2 because they are more efficient for parallel extraction. The former can be decompressed in parallel using Hadoop's splittable Bzip2Codec. Of course, this does not matter when using the pages-articlesX.xml-pXXXXXXXXXXpXXXXXXXXXX.bz2 files (which will be the files of choice for distributed downloads).
+3. Prefer pages-articles-multistream.bz2 files to pages-articles.bz2 because they are more efficient for parallel extraction. The former can be decompressed in parallel using Hadoop's splittable Bzip2Codec. Of course, this does not matter when using the pages-articlesX.xml-pXXXXXXXXXXpXXXXXXXXXX.bz2 files (which will be the files of choice for distributed downloads).
 
 4. **Important:** Finally, when running on a distributed cluster, it is essential that you set `spark.cores.max` (in dist-config.properties) to **N** \* **M** where N = total no. of slaves, M = `SPARK_WORKER_INSTANCES`. This is to ensure that Spark uses as many cores (over the entire cluster) as many workers there are.
 
 Now perform parallel extractions on your Spark cluster:
 
-    $ ./run extraction distributed/src/test/resources/config.properties distributed/src/test/resources/disk-config.properties
+    $ ./run extraction extraction/src/test/resources/config.properties extraction/src/test/resources/disk-config.properties
 
 
 ### Testing
 Please see the [wiki page for Testing](https://github.com/dbpedia/distributed-extraction-framework/wiki/Testing) for detailed instructions on how to verify outputs of the distributed extraction framework by comparing them with that of the original.
 
-[1]: The soon-to-be-merged pull request at https://github.com/dbpedia/distributed-extraction-framework/pull/53 will allow the InfoboxExtractor to run (ie. we can now run all extractors!) but the output will contain some Quads with duplicate `propertyUri`. This is because InfoboxExtractor maintains state in a `HashMap` to filter duplicates, and this does not work in a distributed setting. We can add a post-processing job later that does a group-and-filter of the infobox output dataset.
+## Distributed Downloads
+
+This is still a work in progress and there are some issues that need to be solved.
+
+Have a look at `download/src/test/resources/dist-download.properties` and `download/src/test/resources/download.properties`. You can create your own config files using them. Just make sure that they are present at the same path in all nodes of the cluster.
+
+After cloning and building the framework on the master node, for each slave node, do this:
+```
+rsync -avhz --progress ~/.m2 $SLAVE:~/
+rsync -avhz --progress /path/to/distributed-extraction-framework $SLAVE:/path/to/
+../run download distconfig=/path/to/distributed-extraction-framework/download/src/test/resources/dist-download.properties config=/path/to/distributed-extraction-framework/download/src/test/resources/download.properties
+```
+
+You can find the worker logs at `/path/to/distributed-extraction-framework/logs` of each node.
+
