@@ -19,7 +19,7 @@ trait HadoopConfigurable
   protected val hadoopMapredConf: String
 
   /** Hadoop Configuration. This is implicit because RichHadoopPath operations need it. */
-  implicit val hadoopConf =
+  implicit lazy val hadoopConf =
   {
     val hadoopConf = new Configuration()
 
@@ -47,7 +47,7 @@ trait HadoopConfigurable
     if (pathMustExist && path.isDefined && !path.get.exists)
     {
       val hadoopHint = if (hadoopCoreConf == null || hadoopHdfsConf == null || hadoopMapredConf == null) " Make sure you configured Hadoop correctly and the directory exists on the configured file system." else ""
-      throw sys.error("Dir " + path.get + " does not exist." + hadoopHint)
+      throw sys.error("Dir " + path.get.getSchemeWithFileName + " does not exist." + hadoopHint)
     }
     path
   }
