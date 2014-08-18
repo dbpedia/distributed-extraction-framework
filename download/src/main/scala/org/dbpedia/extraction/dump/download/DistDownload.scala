@@ -92,7 +92,7 @@ class ClusterStartup(config: DistDownloadConfig)
 
   def startMaster(joinAddressOption: Option[Address], role: String): Address =
   {
-    val conf = ConfigFactory.parseString( s"""akka.cluster.roles=[$role]\nakka.remote.netty.hostname="${config.master}"""").
+    val conf = ConfigFactory.parseString( s"""akka.cluster.roles=[$role]\nakka.remote.netty.tcp.hostname="${config.master}"""").
                withFallback(ConfigFactory.load())
     val system = ActorSystem(systemName, conf)
     val joinAddress = joinAddressOption.getOrElse(Cluster(system).selfAddress)
@@ -111,7 +111,7 @@ class ClusterStartup(config: DistDownloadConfig)
 
   def startFrontend(joinAddress: akka.actor.Address): ActorRef =
   {
-    val conf = ConfigFactory.parseString( s"""akka.remote.netty.hostname="${config.master}"""").
+    val conf = ConfigFactory.parseString( s"""akka.remote.netty.tcp.hostname="${config.master}"""").
                withFallback(ConfigFactory.load())
     val system = ActorSystem(systemName, conf)
     Cluster(system).join(joinAddress)
@@ -123,7 +123,7 @@ class ClusterStartup(config: DistDownloadConfig)
 
   def startWorker(contactAddress: akka.actor.Address) =
   {
-    val conf = ConfigFactory.parseString( s"""akka.remote.netty.hostname="${config.bindHost}"""").
+    val conf = ConfigFactory.parseString( s"""akka.remote.netty.tcp.hostname="${config.bindHost}"""").
                withFallback(ConfigFactory.load())
     val system = ActorSystem(systemName, conf)
     val initialContacts = Set(system.actorSelection(RootActorPath(contactAddress) / "user" / "receptionist"))
