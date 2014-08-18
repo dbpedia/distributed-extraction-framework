@@ -16,10 +16,8 @@ import org.dbpedia.extraction.dump.download.actors.DownloadClient.Finished
 /**
  * Distributed Wikipedia dump downloader.
  *
- * The preferred form of running this launcher is: <Java/Maven command> bind-host=192.168.0.1 distconfig=../dist.cfg config=../gen.cfg
- * because bind-host is the only variable that depends on the current machine (master/worker) while the rest remain the same.
- * While running this in a cluster, make sure that all configuration variables (including the paths to configuration files) are valid
- * in all nodes of the cluster, ie. the configuration files need to be present on the worker nodes too.
+ * While running this on a cluster, make sure that all configuration variables (including the paths to configuration files)
+ * are valid in all nodes of the cluster, ie. the configuration files need to be present on the worker nodes too.
  */
 object DistDownload extends RemoteExecute
 {
@@ -52,8 +50,8 @@ object DistDownload extends RemoteExecute
         val session = createSession(config.userName, host)
         for (worker <- 1 to config.workersPerSlave)
         {
-          val command = """cd %s/download;mkdir -p ../logs;nohup ../run download join=%s bind-host=%s %s > ../logs/%s-%d.out &""".
-                        format(config.homeDir, joinAddress, host, workerArgs, host, worker)
+          val command = """cd %s/download;mkdir -p ../logs;nohup ../run download join=%s %s > ../logs/%s-%d.out &""".
+                        format(config.homeDir, joinAddress, workerArgs, host, worker)
           println(command)
           println(execute(session, command))
         }
@@ -123,8 +121,7 @@ class ClusterStartup(config: DistDownloadConfig)
 
   def startWorker(contactAddress: akka.actor.Address) =
   {
-    val conf = ConfigFactory.parseString( s"""akka.remote.netty.tcp.hostname="${config.bindHost}"""").
-               withFallback(ConfigFactory.load())
+    val conf = ConfigFactory.load()
     val system = ActorSystem(systemName, conf)
     val initialContacts = Set(system.actorSelection(RootActorPath(contactAddress) / "user" / "receptionist"))
     val clusterClient = system.actorOf(ClusterClient.props(initialContacts), "clusterClient")

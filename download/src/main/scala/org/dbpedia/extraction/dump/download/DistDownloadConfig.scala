@@ -99,11 +99,6 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   var master: String = "127.0.0.1"
 
   /**
-   * The hostname or IP to bind to.
-   */
-  var bindHost: String = "127.0.0.1"
-
-  /**
    * Akka join address on the driver node. This is where the workers connect to.
    * This must be defined when starting up a worker.
    */
@@ -129,16 +124,13 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    */
   var homeDir: String = null
 
-  def isMaster: Boolean = bindHost == master && !joinAddress.isDefined
+  def isMaster: Boolean = !joinAddress.isDefined
 
   /** Path to hadoop core-site.xml, hadoop hdfs-site.xml and hadoop mapred-site.xml respectively */
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
     parseHadoopConfigs(null, args)
 
   parse(null, args) // parse the distributed download config file/variables
-
-  if (bindHost != master && !slaves.contains(bindHost))
-    throw Usage(s"Config variable bind-host=$bindHost is neither master nor a slave!")
 
   if (homeDir == null)
     throw Usage("Config variable extraction-framework-home not specified!")
@@ -191,7 +183,6 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
       case Arg("master", host) => master = host
       case Arg("slaves", hosts) => slaves = hosts.split(",")
       case Arg("extraction-framework-home", path) => homeDir = path
-      case Arg("bind-host", host) => bindHost = host
       case Arg("join", uri) => joinAddress = Some(AddressFromURIString(uri))
       case Arg("private-key", file) => privateKey = Some(file)
       case Arg("ssh-passphrase", pass) => sshPassphrase = Some(pass)
@@ -339,17 +330,6 @@ master=127.0.0.1
   Master node host.
 slaves=127.0.0.1
   List of comma-separated slave hosts. Example: slaves=node1,node2,node3
-bind-host=127.0.0.1
-  The hostname or IP to bind to. This must be changed to the local network IP or hostname of machine the jar is executed upon.
-  NOTE: *bind-host* must be either set to the hostname value in *master*, or either of the hostnames in *slaves* depending upon
-  where it is being run.
-
-  For example, in a 3-node cluster with 1 master node node0 and 2 slave nodes node1, node2:
-  master=node0
-  slaves=node1,node2
-
-  While running the jar on node0, bind-host=node0 (this tells the framework to fire up the master here).
-  While running on node1, bind-host=node1 and so on.
 join=akka.tcp://Workers@hostname:port
   This variable needs to be specified when starting up a worker manually. Do not use this variable unless you know what you're
   doing. The driver node automatically starts up workers on the slaves and takes care of this variable. Never set this variable
