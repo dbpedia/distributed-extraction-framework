@@ -57,6 +57,8 @@ class DownloadJobRunner(progressInterval: FiniteDuration, hadoopConfiguration: C
       if (!tempDir.exists && !tempDir.mkdirs) throw new Exception("Local temporary directory [" + tempDir + "] does not exist and cannot be created")
 
       val url = new URL(mirror, s"$wiki/$date/$wiki-$date-$fileName")
+      val targetFile = new File(tempDir, downloader.targetName(url))
+      if(targetFile.exists) targetFile.delete() // delete file in temp dir if it already exists
 
       Future(downloader.downloadTo(url, tempDir)).
       onComplete
