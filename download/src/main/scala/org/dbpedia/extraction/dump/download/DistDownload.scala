@@ -52,7 +52,7 @@ object DistDownload extends RemoteExecute
         val session = createSession(config.userName, host)
         for (worker <- 1 to config.workersPerSlave)
         {
-          val command = """cd %s/download;rm -rf ../logs;mkdir ../logs;nohup ../run download join=%s bind-host=%s %s > ../logs/%s-%d.out &""".
+          val command = """cd %s/download;mkdir -p ../logs;nohup ../run download join=%s bind-host=%s %s > ../logs/%s-%d.out &""".
                         format(config.homeDir, joinAddress, host, workerArgs, host, worker)
           println(command)
           println(execute(session, command))
