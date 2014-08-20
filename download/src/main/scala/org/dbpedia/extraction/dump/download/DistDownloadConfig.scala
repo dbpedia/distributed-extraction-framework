@@ -52,7 +52,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * List of mirrors to download from. These will be comma-separated URLs (which are in the same format as baseUrl). Example:
    * mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://dumps.wikimedia.your.org/
    */
-  var mirrors: Array[URL] = Array(new URL("http://dumps.wikimedia.org"))
+  var mirrors: Array[URL] = Array(new URL("http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br/,http://ftp.fi.muni.cz/pub/wikimedia/,http://dumps.wikimedia.your.org/"))
 
   /**
    * If each language consists of multiple dump files (eg. enwiki-latest-pages-articles1.xml-p000000010p000010000.bz2)
@@ -78,7 +78,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * (the timeout is usually set to something like progressReportInterval + 2 to be safe) the download job will be marked
    * as failed and inserted back into the pending download queue.
    *
-   * This is 15 seconds by default.
+   * This is 2 seconds by default.
    */
   var progressReportInterval: FiniteDuration = 2 seconds
 
@@ -134,9 +134,6 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
 
   if (homeDir == null)
     throw Usage("Config variable extraction-framework-home not specified!")
-
-  if (!isMaster && !joinAddress.isDefined)
-    throw Usage("Config variable join needs to be specified to start a worker!")
 
   downloadConfig.parse(null, generalArgs.toList) // parse the general config file
 
@@ -293,7 +290,7 @@ distconfig=/example/path/file.cfg
 extraction-framework-home=/path/to/distributed-extraction-framework
   This must be set to the absolute path to the distributed extraction framework (containing this module)
   in all nodes. No default value is set.
-mirrors=http://dumps.wikimedia.org/
+mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br/,http://ftp.fi.muni.cz/pub/wikimedia/,http://dumps.wikimedia.your.org/
   List of mirrors to download from in the form of comma-separated URLs. Choose from the list of mirrors at:
   http://meta.wikimedia.org/wiki/Mirroring_Wikimedia_project_XML_dumps#Current_Mirrors
   Example: mirrors=http://dumps.wikimedia.org/,http://wikipedia.c3sl.ufpr.br,http://ftp.fi.muni.cz/pub/wikimedia/,http://dumps.wikimedia.your.org/
@@ -303,11 +300,11 @@ workers-per-slave=2
   Number of workers to run per slave. This is set to 2 by default.
   Setting it to (no. of mirrors) * threads-per-mirror is recommended for exploiting maximum parallelism. On the other hand,
   if your whole cluster has only one public facing IP it is better to set this to a low number like 1.
-progress-interval=15
+progress-interval=2
   Progress report time interval in secs - the driver node receives real-time progress reports for running downloads from the workers.
   If a worker fails to send a progress report of the current download under the given timeout (the timeout is set to something
   like progressReportInterval + 2 to be safe) the download job will be marked as failed and inserted back into the pending
-  download queue. This is 15 seconds by default.
+  download queue. This is 2 seconds by default.
 local-temp-dir=/tmp
   Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
   the configured Hadoop file system. This is /tmp by default.

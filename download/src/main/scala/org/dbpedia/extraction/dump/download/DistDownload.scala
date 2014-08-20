@@ -11,7 +11,9 @@ import akka.actor.RootActorPath
 import scala.Some
 import java.util.logging.Logger
 import org.dbpedia.extraction.util.RemoteExecute
-import org.dbpedia.extraction.dump.download.actors.DownloadClient.Finished
+import java.util.UUID
+import org.dbpedia.extraction.dump.download.actors.message.DownloadJob
+import org.dbpedia.extraction.dump.download.actors.Master.Finished
 
 /**
  * Distributed Wikipedia dump downloader.
@@ -31,7 +33,7 @@ object DistDownload extends RemoteExecute
       val cluster = new ClusterStartup(config)
 
       // Start master on the driver node
-      val joinAddress = cluster.startMaster(None, "driver")
+      val (master, joinAddress) = cluster.startMaster(None, "driver")
       Thread.sleep(5000) // wait a few sec for master to start up
 
       (config.privateKey, config.sshPassphrase) match
@@ -44,14 +46,13 @@ object DistDownload extends RemoteExecute
       }
 
       // Start workers on the slaves
-      val workerArgs = args.filterNot(_.startsWith("bind-host")).mkString(" ")
       for (host <- config.slaves)
       {
         val session = createSession(config.userName, host)
         for (worker <- 1 to config.workersPerSlave)
         {
           val command = """cd %s/download;mkdir -p ../logs;nohup ../run download join=%s %s > ../logs/%s-%d.out &""".
-                        format(config.homeDir, joinAddress, workerArgs, host, worker)
+                        format(config.homeDir, joinAddress, args.mkString(" "), host, worker)
           println(command)
           println(execute(session, command))
         }
@@ -59,7 +60,7 @@ object DistDownload extends RemoteExecute
       }
 
       // Start download client and result/progress consumer
-      val client = cluster.startFrontend(joinAddress)
+      cluster.startResultConsumer(joinAddress)
       val dumpFiles = new DumpFileSource(config.languages,
                                          config.baseUrl,
                                          config.baseDir,
@@ -68,9 +69,9 @@ object DistDownload extends RemoteExecute
                                          config.dateRange,
                                          config.dumpCount)
       for(dumpFile <- dumpFiles)
-        client ! dumpFile
+        master ! DownloadJob(nextDownloadId(), dumpFile)
 
-      client ! Finished
+      master ! Finished
     }
     else
     {
@@ -78,6 +79,8 @@ object DistDownload extends RemoteExecute
       cluster.startWorker(config.joinAddress.get)
     }
   }
+
+  def nextDownloadId(): String = UUID.randomUUID().toString
 }
 
 class DistDownload
@@ -88,14 +91,14 @@ class ClusterStartup(config: DistDownloadConfig)
 
   private def progressReportTimeout = config.progressReportInterval + 2.seconds
 
-  def startMaster(joinAddressOption: Option[Address], role: String): Address =
+  def startMaster(joinAddressOption: Option[Address], role: String): (ActorRef, Address) =
   {
     val conf = ConfigFactory.parseString( s"""akka.cluster.roles=[$role]\nakka.remote.netty.tcp.hostname="${config.master}"""").
                withFallback(ConfigFactory.load())
     val system = ActorSystem(systemName, conf)
     val joinAddress = joinAddressOption.getOrElse(Cluster(system).selfAddress)
     Cluster(system).join(joinAddress)
-    system.actorOf(
+    val master = system.actorOf(
                     ClusterSingletonManager.props(Master.props(
                                                                 progressReportTimeout,
                                                                 config.mirrors,
@@ -104,19 +107,17 @@ class ClusterStartup(config: DistDownloadConfig)
                                                   "active", PoisonPill, Some(role)
                                                  ),
                     "master")
-    joinAddress
+    (master, joinAddress)
   }
 
-  def startFrontend(joinAddress: akka.actor.Address): ActorRef =
+  def startResultConsumer(joinAddress: akka.actor.Address)
   {
     val conf = ConfigFactory.parseString( s"""akka.remote.netty.tcp.hostname="${config.master}"""").
                withFallback(ConfigFactory.load())
     val system = ActorSystem(systemName, conf)
     Cluster(system).join(joinAddress)
 
-    val client = system.actorOf(Props[DownloadClient], "client")
     system.actorOf(Props[DownloadResultConsumer], "consumer")
-    client
   }
 
   def startWorker(contactAddress: akka.actor.Address) =

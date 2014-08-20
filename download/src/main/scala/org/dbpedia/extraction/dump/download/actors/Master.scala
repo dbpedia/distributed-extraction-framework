@@ -4,7 +4,7 @@ import scala.concurrent.duration.{Deadline, FiniteDuration}
 import akka.actor._
 import akka.contrib.pattern.{DistributedPubSubMediator, DistributedPubSubExtension}
 import scala.collection.immutable.Queue
-import org.dbpedia.extraction.dump.download.actors.message.GeneralMessage.{MasterQueueEmpty, ShutdownCluster}
+import org.dbpedia.extraction.dump.download.actors.message.GeneralMessage.ShutdownCluster
 import org.dbpedia.extraction.dump.download.actors.message._
 import java.net.URL
 import scala.Some
@@ -41,6 +41,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
 
   val cleanupTask = scheduler.schedule(workTimeout / 2, workTimeout / 2,
                                        self, CleanupTick)
+  private var canShutDownCluster = false
 
   override def postStop(): Unit = cleanupTask.cancel()
 
@@ -56,6 +57,7 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
           self ! PoisonPill
           context.stop(self)
           context.system.shutdown()
+          context.become(shuttingDown)
         }
         else
         {
@@ -167,18 +169,17 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
 
     case job: DownloadJob => // client sent a new DownloadJob
       // idempotent
-      if (downloadIds.contains(job.downloadId))
-      {
-        sender ! Master.Ack(job.downloadId)
-      }
-      else
+      if (!downloadIds.contains(job.downloadId))
       {
         log.info("Accepted download: {}", job)
         pendingDownloads = pendingDownloads enqueue job
         downloadIds += job.downloadId
-        sender ! Master.Ack(job.downloadId)
         notifyWorkers()
       }
+
+    case Finished =>
+      // send this when no more DumpFiles are to be added - ready for shutdown
+      canShutDownCluster = true
 
     case CleanupTick => // runs at fixed intervals, removes timed out jobs
       var hasBusy = false
@@ -194,7 +195,12 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
         }
       }
       // publish MasterQueueEmpty if there are no pending downloads AND no workers are busy
-      if(!hasBusy && pendingDownloads.isEmpty) mediator ! DistributedPubSubMediator.Publish(General, MasterQueueEmpty)
+      if(!hasBusy && pendingDownloads.isEmpty && canShutDownCluster) self ! ShutdownCluster
+  }
+
+  def shuttingDown: Receive =
+  {
+    case _ => // ignore all messages, shutting down cluster.
   }
 
   def getFreeMirror: Option[URL] =
@@ -230,13 +236,12 @@ object Master
   def props(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: Int): Props =
     Props(classOf[Master], workTimeout, mirrors, threadsPerMirror)
 
-  case class Ack(downloadId: String)
-
   private sealed trait WorkerStatus
   private case object Idle extends WorkerStatus
   private case class Busy(job: MirroredDownloadJob, deadline: Deadline) extends WorkerStatus
   private case class WorkerState(ref: ActorRef, status: WorkerStatus)
 
+  case object Finished
   private case object CleanupTick
 
 }
