@@ -3,13 +3,12 @@ package org.dbpedia.extraction.dump.extract
 import java.util.Properties
 import scala.collection.JavaConversions.asScalaSet
 import org.dbpedia.extraction.util.ConfigUtils.getValue
-import org.apache.hadoop.fs.Path
-import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
-import org.apache.hadoop.conf.Configuration
 import java.io.File
 import org.apache.spark.storage.StorageLevel
 import java.net.URI
 import org.apache.log4j.Level
+import org.dbpedia.extraction.util.HadoopConfigurable
+import org.apache.hadoop.fs.Path
 
 /**
  * Class for distributed configuration. Delegates general stuff except directory/file properties to Config.
@@ -21,7 +20,7 @@ import org.apache.log4j.Level
  * @param extractionConfigProps General extraction framework configuration properties
  * @see Config
  */
-class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties, val extractionConfigFile: URI)
+class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties, val extractionConfigFile: URI) extends HadoopConfigurable
 {
   private val extractionConfig = new ExtractionConfig()
 
@@ -58,31 +57,13 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
   val sparkProperties = distConfigProps.stringPropertyNames().filter(_.startsWith("spark.")).map(x => (x, distConfigProps.getProperty(x))).toMap
 
   /** Path to hadoop core-site.xml */
-  private val hadoopCoreConf = distConfigProps.getProperty("hadoop-coresite-xml-path")
+  override protected val hadoopCoreConf = distConfigProps.getProperty("hadoop-coresite-xml-path")
 
   /** Path to hadoop hdfs-site.xml */
-  private val hadoopHdfsConf = distConfigProps.getProperty("hadoop-hdfssite-xml-path")
+  override protected val hadoopHdfsConf = distConfigProps.getProperty("hadoop-hdfssite-xml-path")
 
   /** Path to hadoop mapred-site.xml */
-  private val hadoopMapredConf = distConfigProps.getProperty("hadoop-mapredsite-xml-path")
-
-  /** Hadoop Configuration. This is implicit because RichHadoopPath operations need it. */
-  implicit val hadoopConf =
-  {
-    val hadoopConf = new Configuration()
-
-    if (hadoopCoreConf != null)
-      hadoopConf.addResource(new Path(hadoopCoreConf))
-    if (hadoopHdfsConf != null)
-      hadoopConf.addResource(new Path(hadoopHdfsConf))
-    if (hadoopMapredConf != null)
-      hadoopConf.addResource(new Path(hadoopMapredConf))
-
-    hadoopConf.set("xmlinput.start", "<page>")
-    hadoopConf.set("xmlinput.end", "</page>")
-
-    hadoopConf
-  }
+  override protected val hadoopMapredConf = distConfigProps.getProperty("hadoop-mapredsite-xml-path")
 
   /** This is used for setting log levels for "org.apache", "spark", "org.eclipse.jetty" and "akka" using
     * SparkUtils.setLogLevels(). It is WARN by default.
@@ -167,13 +148,7 @@ class DistConfig(distConfigProps: Properties, extractionConfigProps: Properties,
                             }
                           })
 
-    // If pathMustExist is set to true, and somePath is defined but it does not exist, throw an error.
-    if (pathMustExist && somePath.isDefined && !somePath.get.exists)
-    {
-      val hadoopHint = if (hadoopCoreConf == null || hadoopHdfsConf == null || hadoopMapredConf == null) " Make sure you configured Hadoop correctly and the directory exists on the configured file system." else ""
-      throw sys.error("Dir " + somePath.get + " does not exist." + hadoopHint)
-    }
-    somePath
+    checkPathExists(somePath, pathMustExist)
   }
 
   /**

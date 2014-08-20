@@ -23,7 +23,9 @@
     </properties>
 
     <modules>
-        <module>distributed</module>
+        <module>extraction</module>
+        <module>download</module>
+        <module>common</module>
     </modules>
 
     <build>

@@ -1,7 +1,6 @@
 package org.dbpedia.extraction.util
 
 import java.io.{IOException, OutputStream, InputStream}
-import scala.language.implicitConversions
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 import java.nio.file.NotDirectoryException
