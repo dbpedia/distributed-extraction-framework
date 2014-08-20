@@ -78,7 +78,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * (the timeout is usually set to something like progressReportInterval + 2 to be safe) the download job will be marked
    * as failed and inserted back into the pending download queue.
    *
-   * This is 15 seconds by default.
+   * This is 2 seconds by default.
    */
   var progressReportInterval: FiniteDuration = 2 seconds
 
@@ -300,11 +300,11 @@ workers-per-slave=2
   Number of workers to run per slave. This is set to 2 by default.
   Setting it to (no. of mirrors) * threads-per-mirror is recommended for exploiting maximum parallelism. On the other hand,
   if your whole cluster has only one public facing IP it is better to set this to a low number like 1.
-progress-interval=15
+progress-interval=2
   Progress report time interval in secs - the driver node receives real-time progress reports for running downloads from the workers.
   If a worker fails to send a progress report of the current download under the given timeout (the timeout is set to something
   like progressReportInterval + 2 to be safe) the download job will be marked as failed and inserted back into the pending
-  download queue. This is 15 seconds by default.
+  download queue. This is 2 seconds by default.
 local-temp-dir=/tmp
   Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
   the configured Hadoop file system. This is /tmp by default.
