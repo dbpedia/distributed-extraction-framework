@@ -18,8 +18,13 @@ import akka.actor.DeathPactException
 /**
  * Worker actor that runs on each worker node. This dispatches a download job to a child DownloadJobRunner actor
  * which manages download and a DownloadProgressTracker to send progress reports back to the Worker.
+ *
+ * @param clusterClient Akka ClusterClient that acts as a proxy to the master
+ * @param downloadRunnerProps Props for the downloadRunner actor. See Worker.props()
+ * @param registerInterval The worker registers itself with the master every registerInterval
+ * @param maxDuplicateProgress Maximum number of consecutive duplicate progress read bytes to tolerate
  */
-class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterval: FiniteDuration)
+class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterval: FiniteDuration, maxDuplicateProgress: Int)
   extends Actor with ActorLogging
 {
 
@@ -42,7 +47,6 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
   private var totalBytes = 0l
   private var currentBytes = 0l
   private var progressDelays = 0
-  private val MaxProgressDelays = 5
 
   def downloadId: String = currentDownloadId match
   {
@@ -58,8 +62,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
       case _: Exception =>
         currentDownloadId foreach (workId => sendToMaster(DownloadFailed(workerId, workId)))
         context.become(idle)
-        // registerTask.cancel() is called when processing ShutdownCluster, so no point restarting if we're shutting down.
-        if (registerTask.isCancelled) Stop else Restart
+        Restart
     }
 
   override def postStop(): Unit = registerTask.cancel()
@@ -84,8 +87,12 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
     case job @ MirroredDownloadJob(_, DownloadJob(downloadId, _)) => // receive new download job
       log.info("Got download job: {}", job)
       currentDownloadId = Some(downloadId)
+
+      // reset state variables for new download job
       currentBytes = 0
+      totalBytes = 0
       progressDelays = 0
+
       downloadRunner ! job
       context.become(working)
   }
@@ -100,12 +107,21 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
       sendToMaster(ProgressReport(workerId, downloadId, p))
 
       // check if number of bytes downloaded has increased.
-      if(bytes > currentBytes) currentBytes = bytes else progressDelays += 1
+      if(bytes > currentBytes)
+      {
+        currentBytes = bytes
+        progressDelays = 0
+      }
+      else
+      {
+        progressDelays += 1
+      }
 
-      if(progressDelays > MaxProgressDelays && totalBytes != bytes) // too many progress delays?
+      if(progressDelays > maxDuplicateProgress && totalBytes != bytes) // too many progress delays?
       {
         val delay = progressDelays * downloadRunnerProps.args(0).asInstanceOf[FiniteDuration].toSeconds
-        throw new Exception(s"Download progress has stagnated. No update occurred in $delay seconds!")
+        log.info(s"Download progress of $currentDownloadId has stagnated. No update occurred in $delay seconds!")
+        sendToMaster(DownloadFailed(workerId, currentDownloadId.get))
       }
 
     case DownloadComplete(output, bytes) => // DownloadJobRunner sends this upon completion
@@ -147,7 +163,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 
 object Worker
 {
-  def props(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterval: FiniteDuration = 10.seconds): Props =
+  def props(clusterClient: ActorRef, downloadRunnerProps: Props, maxDuplicateProgress: Int, registerInterval: FiniteDuration = 10.seconds): Props =
     Props(classOf[Worker], clusterClient, downloadRunnerProps, registerInterval)
 
   case class DownloadComplete(outputFilePath: String, bytes: Long)

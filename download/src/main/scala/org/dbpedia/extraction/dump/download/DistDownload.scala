@@ -129,7 +129,8 @@ class ClusterStartup(config: DistDownloadConfig)
                                                          config.hadoopConf,
                                                          config.localTempDir,
                                                          config.unzip
-                                                        )
+                                                        ),
+                                 config.maxDuplicateProgress
                                 ),
                     "worker"
                   )

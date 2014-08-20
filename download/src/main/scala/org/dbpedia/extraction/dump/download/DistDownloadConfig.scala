@@ -83,6 +83,14 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   var progressReportInterval: FiniteDuration = 2 seconds
 
   /**
+   * Maximum number of consecutive duplicate progress read bytes to tolerate. The workers keep track of download progress;
+   * if a download gets stuck consecutive progress reports will contain the same number of bytes downloaded. If this is set
+   * to 30 (not recommended to go below that), the worker will declare a job as failed only after getting the same progress
+   * report for 30 times.
+   */
+  var maxDuplicateProgress: Int = 30
+
+  /**
    * Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
    * the configured Hadoop file system.
    */
@@ -176,6 +184,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
       case Arg("workers-per-slave", workers) => workersPerSlave = toInt(workers, 1, Int.MaxValue, arg)
       case Arg("sequential-languages", bool) => sequentialLanguages = toBoolean(bool, arg)
       case Arg("progress-interval", interval) => progressReportInterval = toInt(interval, 1, Int.MaxValue, arg).seconds
+      case Arg("max-duplicate-progress-reports", max) => maxDuplicateProgress = toInt(max, 1, Int.MaxValue, arg)
       case Arg("local-temp-dir", file) => localTempDir = new File(file)
       case Arg("master", host) => master = host
       case Arg("slaves", hosts) => slaves = hosts.split(",")
@@ -305,6 +314,11 @@ progress-interval=2
   If a worker fails to send a progress report of the current download under the given timeout (the timeout is set to something
   like progressReportInterval + 2 to be safe) the download job will be marked as failed and inserted back into the pending
   download queue. This is 2 seconds by default.
+max-duplicate-progress-reports=30
+  Maximum number of consecutive duplicate progress read bytes to tolerate. The workers keep track of download progress;
+  if a download gets stuck consecutive progress reports will contain the same number of bytes downloaded. If this is set
+  to 30 (not recommended to go below that), the worker will declare a job as failed only after getting the same progress
+  report for 30 times. By default set to 30.
 local-temp-dir=/tmp
   Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
   the configured Hadoop file system. This is /tmp by default.
