@@ -135,9 +135,6 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   if (homeDir == null)
     throw Usage("Config variable extraction-framework-home not specified!")
 
-  if (!isMaster && !joinAddress.isDefined)
-    throw Usage("Config variable join needs to be specified to start a worker!")
-
   downloadConfig.parse(null, generalArgs.toList) // parse the general config file
 
   if ((languages.nonEmpty || ranges.nonEmpty) && baseUrl == null) throw Usage("No base URL")
