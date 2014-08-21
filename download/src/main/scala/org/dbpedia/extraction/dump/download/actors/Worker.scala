@@ -21,10 +21,10 @@ import akka.actor.DeathPactException
  *
  * @param clusterClient Akka ClusterClient that acts as a proxy to the master
  * @param downloadRunnerProps Props for the downloadRunner actor. See Worker.props()
- * @param registerInterval The worker registers itself with the master every registerInterval
  * @param maxDuplicateProgress Maximum number of consecutive duplicate progress read bytes to tolerate
+ * @param registerInterval The worker registers itself with the master every registerInterval
  */
-class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterval: FiniteDuration, maxDuplicateProgress: Int)
+class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, maxDuplicateProgress: Int, registerInterval: FiniteDuration)
   extends Actor with ActorLogging
 {
 
@@ -164,7 +164,7 @@ class Worker(clusterClient: ActorRef, downloadRunnerProps: Props, registerInterv
 object Worker
 {
   def props(clusterClient: ActorRef, downloadRunnerProps: Props, maxDuplicateProgress: Int, registerInterval: FiniteDuration = 10.seconds): Props =
-    Props(classOf[Worker], clusterClient, downloadRunnerProps, registerInterval)
+    Props(classOf[Worker], clusterClient, downloadRunnerProps, maxDuplicateProgress, registerInterval)
 
   case class DownloadComplete(outputFilePath: String, bytes: Long)
 
