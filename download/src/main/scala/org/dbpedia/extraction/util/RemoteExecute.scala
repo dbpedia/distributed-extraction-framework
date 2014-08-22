@@ -4,7 +4,7 @@ import com.jcraft.jsch.{JSch, JSchException, ChannelExec, Session}
 import java.io.IOException
 
 /**
- * Created by nilesh on 15/8/14.
+ * Utility trait for creating an SSH session and executing remote commands.
  */
 trait RemoteExecute
 {

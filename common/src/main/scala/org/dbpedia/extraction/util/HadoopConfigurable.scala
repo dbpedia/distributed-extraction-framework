@@ -5,7 +5,7 @@ import org.dbpedia.extraction.util.RichHadoopPath.wrapPath
 import org.apache.hadoop.conf.Configuration
 
 /**
- * Created by nilesh on 6/8/14.
+ * Trait for classes that need to create a Hadoop Configuration.
  */
 trait HadoopConfigurable
 {

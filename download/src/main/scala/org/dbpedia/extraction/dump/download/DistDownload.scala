@@ -43,15 +43,13 @@ object DistDownload extends RemoteExecute
         case _ => // no private key provided
       }
 
-      // Start workers on the slaves
-      val workerArgs = args.filterNot(_.startsWith("bind-host")).mkString(" ")
       for (host <- config.slaves)
       {
         val session = createSession(config.userName, host)
         for (worker <- 1 to config.workersPerSlave)
         {
           val command = """cd %s/download;mkdir -p ../logs;nohup ../run download join=%s %s > ../logs/%s-%d.out &""".
-                        format(config.homeDir, joinAddress, workerArgs, host, worker)
+                        format(config.homeDir, joinAddress, args.mkString(" "), host, worker)
           println(command)
           println(execute(session, command))
         }
@@ -131,7 +129,8 @@ class ClusterStartup(config: DistDownloadConfig)
                                                          config.hadoopConf,
                                                          config.localTempDir,
                                                          config.unzip
-                                                        )
+                                                        ),
+                                 config.maxDuplicateProgress
                                 ),
                     "worker"
                   )

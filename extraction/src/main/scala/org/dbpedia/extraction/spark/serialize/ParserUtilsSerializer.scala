@@ -6,7 +6,7 @@ import org.dbpedia.extraction.dataparser.ParserUtils
 import org.dbpedia.extraction.util.Language
 
 /**
- * Created by nilesh on 25/5/14.
+ * Kryo serializer for org.dbpedia.extraction.dataparser.ParserUtils
  */
 class ParserUtilsSerializer extends Serializer[ParserUtils]
 {
