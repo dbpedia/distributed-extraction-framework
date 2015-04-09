@@ -34,8 +34,12 @@
             <plugin>
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
-
+                <version>3.1.6</version>
                 <configuration>
+                <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
+                <scalaVersion>${scala.version}</scalaVersion>
+
+                <!--<configuration>-->
                     <launchers>
                         <launcher>
                             <id>seq-extraction</id>
