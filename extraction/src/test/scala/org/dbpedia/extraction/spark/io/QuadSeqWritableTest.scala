@@ -6,7 +6,7 @@ import org.scalatest.junit.JUnitRunner
 import org.dbpedia.extraction.destinations.Quad
 import scala.util.Random
 import org.junit.Assert._
-import org.scalatest.fixture.FunSuiteLike
+import org.scalatest.FunSuiteLike
 
 @RunWith(classOf[JUnitRunner])
 class QuadSeqWritableTest extends WritableTest[QuadSeqWritable] with FunSuiteLike

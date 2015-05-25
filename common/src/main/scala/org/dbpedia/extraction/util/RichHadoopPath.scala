@@ -5,7 +5,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 import java.nio.file.NotDirectoryException
 import scala.language.implicitConversions
-import org.dbpedia.extraction.util.FileLike
+//import org.dbpedia.extraction.util.FileLike
 
 object RichHadoopPath {
 
