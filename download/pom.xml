@@ -125,14 +125,14 @@
 
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-contrib_2.10</artifactId>
-            <version>2.3.0</version>
+            <artifactId>akka-contrib_${scala.version}</artifactId>
+            <version>2.3.11</version>
         </dependency>
 
         <dependency>
             <groupId>com.typesafe.akka</groupId>
-            <artifactId>akka-testkit_2.10</artifactId>
-            <version>2.3.0</version>
+            <artifactId>akka-testkit_${scala.version}</artifactId>
+            <version>2.3.11</version>
         </dependency>
 
         <dependency>
