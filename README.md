@@ -80,7 +80,7 @@ In the root directory run the following commands
 
 Now perform parallel extractions on your Spark cluster:
 
-    $ ./run extraction extraction/src/test/resources/config.properties extraction/src/test/resources/disk-config.properties
+    $ ./run extraction extraction/src/test/resources/config.properties extraction/src/test/resources/dist-config.properties
 
 
 ### Testing
