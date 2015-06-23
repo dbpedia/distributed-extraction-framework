@@ -9,7 +9,7 @@ This is currently a work-in-progress, and the instructions are mostly intended f
 * Java 7
 * Maven 3
 * Apache Spark 1.3.0 built with Apache Hadoop 2.5.2
-* Scala 2.10.4
+* Scala 2.11.4
 
 ## Setup Apache Spark
 

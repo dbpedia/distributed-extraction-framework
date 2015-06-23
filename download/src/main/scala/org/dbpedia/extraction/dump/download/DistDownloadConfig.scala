@@ -94,7 +94,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
    * the configured Hadoop file system.
    */
-  var localTempDir: File = new File("/dump/")
+  var localTempDir: File = new File("/data/")
 
   /**
    * Slave hostnames. By default consists only of 127.0.0.1.

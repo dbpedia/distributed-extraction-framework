@@ -55,7 +55,7 @@
         <artifactId>scala-maven-plugin</artifactId>
         <version>3.1.6</version>
         <configuration>
-          <scalaCompatVersion>2.10</scalaCompatVersion>
+          <scalaCompatVersion>${scala.binary.version}</scalaCompatVersion>
           <scalaVersion>${scala.version}</scalaVersion>
           <launchers>
             <launcher>
