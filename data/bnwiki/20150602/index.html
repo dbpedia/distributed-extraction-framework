@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>bnwiki dump progress on 20150602</title>
+        <style type="text/css">
+                html, body {
+                        background-color: #eee;
+                        color: black;
+                }
+                .siteinfo {
+                        text-align: center;
+                }
+                li {
+                        background-color: #f4f4f4;
+                        list-style-type: none;
+                }
+                li li {
+                        background-color: white;
+                }
+                li ul {
+                        margin-top: 4px;
+                        margin-bottom: 8px;
+                }
+                .detail {
+                        font-weight: normal;
+                        font-style: italic;
+                }
+                .updates {
+                        font: monospace;
+                        font-size: smaller;
+                }
+                .status {
+                        font-weight: bold;
+                }
+                .status, .checksum {
+                        padding-left: 1em;
+                        padding-right: 1em;
+                }
+                .in-progress {
+                        font-weight: bold;
+                }
+                .failed {
+                        color: Maroon;
+                        font-weight: bold;
+                }
+                .notice {
+                        color: Maroon;
+                        font-weight: normal;
+                }
+                .waiting {
+                        color: Silver; /* Gray ? */
+                }
+                .progress {
+                        font-family: monospace;
+                        font-size: 80%;
+                        margin-left: .5in;
+                }
+        </style>
+</head>
+
+<body>
+        <h1>bnwiki dump progress on 20150602</h1>
+
+        <p class="siteinfo">
+                This is the Wikimedia dump service.
+                Please read the <a href='../../legal.html'>copyrights</a> information.
+                See <a href="http://meta.wikimedia.org/wiki/Data_dumps">Meta:Data dumps</a>
+                for documentation on the provided data formats.
+        </p>
+
+        <p class="notice"></p>
+
+        <p>See <a href="../../backup-index.html">all databases list</a>.</p>
+
+        <p class="previous">
+                <a href="../20150515/">Last dumped on 2015-05-15</a>
+        </p>
+
+        <p class="status">
+                <span class='done'>Dump complete</span>
+        </p>
+
+        <p class="checksum">
+                Verify downloaded files against the <a href="/bnwiki/20150602/bnwiki-20150602-md5sums.txt">MD5 checksums</a>
+                to check for corrupted files.
+        </p>
+
+        <ul>
+                <li class='done'><span class='updates'>2015-06-07 11:19:46</span> <span class='status'>done</span> <span class='title'>Articles, templates, media/file descriptions, and primary meta-pages, in multiple bz2 streams, 100 pages per stream</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-articles-multistream.xml.bz2">bnwiki-20150602-pages-articles-multistream.xml.bz2</a> 71.0 MB</li>
+<li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-articles-multistream-index.txt.bz2">bnwiki-20150602-pages-articles-multistream-index.txt.bz2</a> 2.1 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-07 11:17:43</span> <span class='status'>done</span> <span class='title'>All pages with complete edit history (.7z)</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-meta-history.xml.7z">bnwiki-20150602-pages-meta-history.xml.7z</a> 249.7 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-07 11:05:08</span> <span class='status'>done</span> <span class='title'>All pages with complete page edit history (.bz2)</span><div class='progress'>2015-06-07 11:05:06: bnwiki (ID 8319) 393827 pages (48.2|82225.6/sec all|curr), 1765816 revs (216.0|170.4/sec all|curr), 98.4%|98.4% prefetched (all|curr), ETA 2015-06-07 11:11:42 [max 1851328]</div>
+<ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-meta-history.xml.bz2">bnwiki-20150602-pages-meta-history.xml.bz2</a> 512.7 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:30</span> <span class='status'>done</span> <span class='title'>This contains a row for each flagged revision, containing who flagged it, when it was flagged, reviewer comments, the flag values, and the quality tier those flags fall under.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-flaggedrevs.sql.gz">bnwiki-20150602-flaggedrevs.sql.gz</a> 20 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:28</span> <span class='status'>done</span> <span class='title'>This contains a row for each flagged article, containing the stable revision ID, if the lastest edit was flagged, and how long edits have been pending.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-flaggedpages.sql.gz">bnwiki-20150602-flaggedpages.sql.gz</a> 1 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 14:00:01</span> <span class='status'>done</span> <span class='title'>Log events to all pages and users.</span><ul><li class='detail'>This contains the log of actions performed on pages and users.</li>
+<li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-logging.xml.gz">bnwiki-20150602-pages-logging.xml.gz</a> 37.5 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-07 08:48:49</span> <span class='status'>done</span> <span class='title'>All pages, current versions only.</span><div class='progress'>2015-06-07 08:48:47: bnwiki (ID 5319) 393827 pages (334.1|78786.6/sec all|curr), 393827 revs (334.1|165.4/sec all|curr), 96.8%|97.0% prefetched (all|curr), ETA 2015-06-07 10:01:30 [max 1851310]</div>
+<ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-meta-current.xml.bz2">bnwiki-20150602-pages-meta-current.xml.bz2</a> 94.6 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-04 22:47:52</span> <span class='status'>done</span> <span class='title'><big><b>Articles, templates, media/file descriptions, and primary meta-pages.</b></big></span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pages-articles.xml.bz2">bnwiki-20150602-pages-articles.xml.bz2</a> 65.5 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-02 19:26:00</span> <span class='status'>done</span> <span class='title'>First-pass for page XML data dumps</span><ul><li class='detail'>These files contain no page text, only revision metadata.</li>
+<li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-stub-meta-history.xml.gz">bnwiki-20150602-stub-meta-history.xml.gz</a> 116.4 MB</li>
+<li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-stub-meta-current.xml.gz">bnwiki-20150602-stub-meta-current.xml.gz</a> 22.8 MB</li>
+<li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-stub-articles.xml.gz">bnwiki-20150602-stub-articles.xml.gz</a> 14.7 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-07 08:29:01</span> <span class='status'>done</span> <span class='title'>Extracted page abstracts for Yahoo</span><div class='progress'>2015-06-07 08:28:59: bnwiki (ID 26442) 394532 pages (142.2|132768.8/sec all|curr), 394543 revs (142.2|182.7/sec all|curr), ETA 2015-06-07 08:32:52 [max 427666]</div>
+<ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-abstract.xml">bnwiki-20150602-abstract.xml</a> 84.4 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-04 17:33:45</span> <span class='status'>done</span> <span class='title'>List of all page titles</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-all-titles.gz">bnwiki-20150602-all-titles.gz</a> 2.4 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-04 15:26:28</span> <span class='status'>done</span> <span class='title'>List of page titles in main namespace</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-all-titles-in-ns0.gz">bnwiki-20150602-all-titles-in-ns0.gz</a> 1.2 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-07 07:42:45</span> <span class='status'>done</span> <span class='title'>List of pages' geographical coordinates</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-geo_tags.sql.gz">bnwiki-20150602-geo_tags.sql.gz</a> 92 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:23</span> <span class='status'>done</span> <span class='title'>Interwiki link tracking records</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-iwlinks.sql.gz">bnwiki-20150602-iwlinks.sql.gz</a> 429 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:21</span> <span class='status'>done</span> <span class='title'>Redirect list</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-redirect.sql.gz">bnwiki-20150602-redirect.sql.gz</a> 1.2 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:18</span> <span class='status'>done</span> <span class='title'>Nonexistent pages that have been protected.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-protected_titles.sql.gz">bnwiki-20150602-protected_titles.sql.gz</a> 1 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:16</span> <span class='status'>done</span> <span class='title'>Name/value pairs for pages.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-page_props.sql.gz">bnwiki-20150602-page_props.sql.gz</a> 1.3 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:13</span> <span class='status'>done</span> <span class='title'>Newer per-page restrictions table.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-page_restrictions.sql.gz">bnwiki-20150602-page_restrictions.sql.gz</a> 12 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:11</span> <span class='status'>done</span> <span class='title'>Base per-page data (id, title, old restrictions, etc).</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-page.sql.gz">bnwiki-20150602-page.sql.gz</a> 11.2 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:07</span> <span class='status'>done</span> <span class='title'>Category information.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-category.sql.gz">bnwiki-20150602-category.sql.gz</a> 935 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:05</span> <span class='status'>done</span> <span class='title'>User group assignments.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-user_groups.sql.gz">bnwiki-20150602-user_groups.sql.gz</a> 1 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:03</span> <span class='status'>done</span> <span class='title'>Set of defined interwiki prefixes and links for this wiki.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-interwiki.sql.gz">bnwiki-20150602-interwiki.sql.gz</a> 723 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:01:00</span> <span class='status'>done</span> <span class='title'>Wiki interlanguage link records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-langlinks.sql.gz">bnwiki-20150602-langlinks.sql.gz</a> 17.4 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:00:46</span> <span class='status'>done</span> <span class='title'>Wiki external URL link records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-externallinks.sql.gz">bnwiki-20150602-externallinks.sql.gz</a> 7.1 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:00:41</span> <span class='status'>done</span> <span class='title'>Wiki template inclusion link records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-templatelinks.sql.gz">bnwiki-20150602-templatelinks.sql.gz</a> 6.9 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:00:05</span> <span class='status'>done</span> <span class='title'>Wiki media/files usage records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-imagelinks.sql.gz">bnwiki-20150602-imagelinks.sql.gz</a> 2.9 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 07:59:57</span> <span class='status'>done</span> <span class='title'>Wiki category membership link records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-categorylinks.sql.gz">bnwiki-20150602-categorylinks.sql.gz</a> 4.9 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 07:59:49</span> <span class='status'>done</span> <span class='title'>Wiki page-to-page link records.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-pagelinks.sql.gz">bnwiki-20150602-pagelinks.sql.gz</a> 25.3 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:22</span> <span class='status'>done</span> <span class='title'>Metadata on current versions of uploaded media/files.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-image.sql.gz">bnwiki-20150602-image.sql.gz</a> 475 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:20</span> <span class='status'>done</span> <span class='title'>A few statistics such as the page count.</span><ul><li class='file'><a href="/bnwiki/20150602/bnwiki-20150602-site_stats.sql.gz">bnwiki-20150602-site_stats.sql.gz</a> 801 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:18</span> <span class='status'>done</span> <span class='title'>Metadata on prior versions of uploaded images. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:16</span> <span class='status'>done</span> <span class='title'>Data for various events (deletions, uploads, etc). (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:05</span> <span class='status'>done</span> <span class='title'>Deleted page and revision data. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:02</span> <span class='status'>done</span> <span class='title'>Data for blocks of IP addresses, ranges, and users. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 07:58:00</span> <span class='status'>done</span> <span class='title'>Users' watchlist settings. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 07:57:53</span> <span class='status'>done</span> <span class='title'>User account data. (private)</span></li>
+        </ul>
+
+</body>
+</html>

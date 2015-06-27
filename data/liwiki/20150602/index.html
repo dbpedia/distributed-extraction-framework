@@ -1,0 +1,137 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <title>liwiki dump progress on 20150602</title>
+        <style type="text/css">
+                html, body {
+                        background-color: #eee;
+                        color: black;
+                }
+                .siteinfo {
+                        text-align: center;
+                }
+                li {
+                        background-color: #f4f4f4;
+                        list-style-type: none;
+                }
+                li li {
+                        background-color: white;
+                }
+                li ul {
+                        margin-top: 4px;
+                        margin-bottom: 8px;
+                }
+                .detail {
+                        font-weight: normal;
+                        font-style: italic;
+                }
+                .updates {
+                        font: monospace;
+                        font-size: smaller;
+                }
+                .status {
+                        font-weight: bold;
+                }
+                .status, .checksum {
+                        padding-left: 1em;
+                        padding-right: 1em;
+                }
+                .in-progress {
+                        font-weight: bold;
+                }
+                .failed {
+                        color: Maroon;
+                        font-weight: bold;
+                }
+                .notice {
+                        color: Maroon;
+                        font-weight: normal;
+                }
+                .waiting {
+                        color: Silver; /* Gray ? */
+                }
+                .progress {
+                        font-family: monospace;
+                        font-size: 80%;
+                        margin-left: .5in;
+                }
+        </style>
+</head>
+
+<body>
+        <h1>liwiki dump progress on 20150602</h1>
+
+        <p class="siteinfo">
+                This is the Wikimedia dump service.
+                Please read the <a href='../../legal.html'>copyrights</a> information.
+                See <a href="http://meta.wikimedia.org/wiki/Data_dumps">Meta:Data dumps</a>
+                for documentation on the provided data formats.
+        </p>
+
+        <p class="notice"></p>
+
+        <p>See <a href="../../backup-index.html">all databases list</a>.</p>
+
+        <p class="previous">
+                <a href="../20150516/">Last dumped on 2015-05-16</a>
+        </p>
+
+        <p class="status">
+                <span class='done'>Dump complete</span>
+        </p>
+
+        <p class="checksum">
+                Verify downloaded files against the <a href="/liwiki/20150602/liwiki-20150602-md5sums.txt">MD5 checksums</a>
+                to check for corrupted files.
+        </p>
+
+        <ul>
+                <li class='done'><span class='updates'>2015-06-08 05:10:14</span> <span class='status'>done</span> <span class='title'>Articles, templates, media/file descriptions, and primary meta-pages, in multiple bz2 streams, 100 pages per stream</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-articles-multistream.xml.bz2">liwiki-20150602-pages-articles-multistream.xml.bz2</a> 9.9 MB</li>
+<li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-articles-multistream-index.txt.bz2">liwiki-20150602-pages-articles-multistream-index.txt.bz2</a> 193 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-08 05:10:02</span> <span class='status'>done</span> <span class='title'>All pages with complete edit history (.7z)</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-meta-history.xml.7z">liwiki-20150602-pages-meta-history.xml.7z</a> 42.5 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-08 05:08:04</span> <span class='status'>done</span> <span class='title'>All pages with complete page edit history (.bz2)</span><div class='progress'>2015-06-08 05:08:01: liwiki (ID 28052) 32756 pages (26.8|11074.3/sec all|curr), 359956 revs (294.6|323.2/sec all|curr), 99.8%|99.9% prefetched (all|curr), ETA 2015-06-08 05:08:43 [max 372229]</div>
+<ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-meta-history.xml.bz2">liwiki-20150602-pages-meta-history.xml.bz2</a> 82.2 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 14:50:11</span> <span class='status'>done</span> <span class='title'>Log events to all pages and users.</span><ul><li class='detail'>This contains the log of actions performed on pages and users.</li>
+<li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-logging.xml.gz">liwiki-20150602-pages-logging.xml.gz</a> 964 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-08 04:47:38</span> <span class='status'>done</span> <span class='title'>All pages, current versions only.</span><div class='progress'>2015-06-08 04:47:37: liwiki (ID 27959) 32756 pages (455.2|18398.0/sec all|curr), 32756 revs (455.2|424.6/sec all|curr), 98.9%|99.4% prefetched (all|curr), ETA 2015-06-08 05:00:03 [max 372229]</div>
+<ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-meta-current.xml.bz2">liwiki-20150602-pages-meta-current.xml.bz2</a> 11.0 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-05 00:18:38</span> <span class='status'>done</span> <span class='title'><big><b>Articles, templates, media/file descriptions, and primary meta-pages.</b></big></span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pages-articles.xml.bz2">liwiki-20150602-pages-articles.xml.bz2</a> 8.9 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-02 21:12:18</span> <span class='status'>done</span> <span class='title'>First-pass for page XML data dumps</span><ul><li class='detail'>These files contain no page text, only revision metadata.</li>
+<li class='file'><a href="/liwiki/20150602/liwiki-20150602-stub-meta-history.xml.gz">liwiki-20150602-stub-meta-history.xml.gz</a> 24.9 MB</li>
+<li class='file'><a href="/liwiki/20150602/liwiki-20150602-stub-meta-current.xml.gz">liwiki-20150602-stub-meta-current.xml.gz</a> 2.2 MB</li>
+<li class='file'><a href="/liwiki/20150602/liwiki-20150602-stub-articles.xml.gz">liwiki-20150602-stub-articles.xml.gz</a> 1.7 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-08 04:46:23</span> <span class='status'>done</span> <span class='title'>Extracted page abstracts for Yahoo</span><div class='progress'>2015-06-08 04:46:21: liwiki (ID 27776) 32771 pages (147.7|6438.4/sec all|curr), 32771 revs (147.7|151.5/sec all|curr), ETA 2015-06-08 04:46:59 [max 38368]</div>
+<ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-abstract.xml">liwiki-20150602-abstract.xml</a> 6.5 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-04 17:51:02</span> <span class='status'>done</span> <span class='title'>List of all page titles</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-all-titles.gz">liwiki-20150602-all-titles.gz</a> 153 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-04 15:44:52</span> <span class='status'>done</span> <span class='title'>List of page titles in main namespace</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-all-titles-in-ns0.gz">liwiki-20150602-all-titles-in-ns0.gz</a> 98 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-08 04:42:38</span> <span class='status'>done</span> <span class='title'>List of pages' geographical coordinates</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-geo_tags.sql.gz">liwiki-20150602-geo_tags.sql.gz</a> 799 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:38</span> <span class='status'>done</span> <span class='title'>Interwiki link tracking records</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-iwlinks.sql.gz">liwiki-20150602-iwlinks.sql.gz</a> 71 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:36</span> <span class='status'>done</span> <span class='title'>Redirect list</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-redirect.sql.gz">liwiki-20150602-redirect.sql.gz</a> 90 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:34</span> <span class='status'>done</span> <span class='title'>Nonexistent pages that have been protected.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-protected_titles.sql.gz">liwiki-20150602-protected_titles.sql.gz</a> 1 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:32</span> <span class='status'>done</span> <span class='title'>Name/value pairs for pages.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-page_props.sql.gz">liwiki-20150602-page_props.sql.gz</a> 174 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:29</span> <span class='status'>done</span> <span class='title'>Newer per-page restrictions table.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-page_restrictions.sql.gz">liwiki-20150602-page_restrictions.sql.gz</a> 1 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:27</span> <span class='status'>done</span> <span class='title'>Base per-page data (id, title, old restrictions, etc).</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-page.sql.gz">liwiki-20150602-page.sql.gz</a> 981 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:25</span> <span class='status'>done</span> <span class='title'>Category information.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-category.sql.gz">liwiki-20150602-category.sql.gz</a> 29 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:23</span> <span class='status'>done</span> <span class='title'>User group assignments.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-user_groups.sql.gz">liwiki-20150602-user_groups.sql.gz</a> 960 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:21</span> <span class='status'>done</span> <span class='title'>Set of defined interwiki prefixes and links for this wiki.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-interwiki.sql.gz">liwiki-20150602-interwiki.sql.gz</a> 724 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:19</span> <span class='status'>done</span> <span class='title'>Wiki interlanguage link records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-langlinks.sql.gz">liwiki-20150602-langlinks.sql.gz</a> 5.4 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:15</span> <span class='status'>done</span> <span class='title'>Wiki external URL link records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-externallinks.sql.gz">liwiki-20150602-externallinks.sql.gz</a> 353 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:13</span> <span class='status'>done</span> <span class='title'>Wiki template inclusion link records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-templatelinks.sql.gz">liwiki-20150602-templatelinks.sql.gz</a> 73 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:11</span> <span class='status'>done</span> <span class='title'>Wiki media/files usage records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-imagelinks.sql.gz">liwiki-20150602-imagelinks.sql.gz</a> 219 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:08</span> <span class='status'>done</span> <span class='title'>Wiki category membership link records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-categorylinks.sql.gz">liwiki-20150602-categorylinks.sql.gz</a> 457 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:06</span> <span class='status'>done</span> <span class='title'>Wiki page-to-page link records.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-pagelinks.sql.gz">liwiki-20150602-pagelinks.sql.gz</a> 2.2 MB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:02</span> <span class='status'>done</span> <span class='title'>Metadata on current versions of uploaded media/files.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-image.sql.gz">liwiki-20150602-image.sql.gz</a> 80 KB</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:51:00</span> <span class='status'>done</span> <span class='title'>A few statistics such as the page count.</span><ul><li class='file'><a href="/liwiki/20150602/liwiki-20150602-site_stats.sql.gz">liwiki-20150602-site_stats.sql.gz</a> 797 bytes</li></ul></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:58</span> <span class='status'>done</span> <span class='title'>Metadata on prior versions of uploaded images. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:55</span> <span class='status'>done</span> <span class='title'>Data for various events (deletions, uploads, etc). (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:53</span> <span class='status'>done</span> <span class='title'>Deleted page and revision data. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:51</span> <span class='status'>done</span> <span class='title'>Data for blocks of IP addresses, ranges, and users. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:49</span> <span class='status'>done</span> <span class='title'>Users' watchlist settings. (private)</span></li>
+<li class='done'><span class='updates'>2015-06-03 08:50:47</span> <span class='status'>done</span> <span class='title'>User account data. (private)</span></li>
+        </ul>
+
+</body>
+</html>
