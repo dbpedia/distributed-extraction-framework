@@ -8,14 +8,15 @@ This is currently a work-in-progress, and the instructions are mostly intended f
 ## Requirements
 * Java 7
 * Maven 3
-* Apache Spark 0.9.1 built with Apache Hadoop 2.2.0
+* Apache Spark 1.3.0 built with Apache Hadoop 2.5.2
+* Scala 2.11.4
 
 ## Setup Apache Spark
 
 ```bash
-$ wget http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
-$ tar xzf http://d3kbcqa49mib13.cloudfront.net/spark-0.9.1-bin-hadoop2.tgz
-$ cd spark-0.9.1-bin-hadoop2
+$ wget https://www.apache.org/dist/spark/spark-1.3.0/spark-1.3.0-bin-hadoop2.4.tgz 
+$ tar -zxzf https://www.apache.org/dist/spark/spark-1.3.0/spark-1.3.0-bin-hadoop2.4.tgz
+$ cd spark-1.3.0-bin-hadoop2.4
 $ SCALA_HOME=/usr/share/java MAVEN_OPTS=\"-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m\" mvn -Dhadoop.version=2.2.0 -Dprotobuf.version=2.5.0 -DskipTests clean package
 ```
 
@@ -49,7 +50,7 @@ sbin/start-all.sh
     
 We have added a script for setting up Spark and Hadoop on Google Compute Engine with the optimal settings for this framework. You can find it in the **gce** directory.
     
-Please refer to the [Spark official docs](http://spark.apache.org/docs/0.9.1/spark-standalone.html) for details on how to deploy Spark in standalone mode.
+Please refer to the [Spark official docs](https://spark.apache.org/docs/latest/spark-standalone.html) for details on how to deploy Spark in standalone mode.
 
 ## How to Build
 

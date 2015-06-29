@@ -2,7 +2,7 @@ package org.dbpedia.extraction.util
 
 import com.jcraft.jsch.{JSch, JSchException, ChannelExec, Session}
 import java.io.IOException
-
+import scala.io.Source
 /**
  * Utility trait for creating an SSH session and executing remote commands.
  */
@@ -14,13 +14,21 @@ trait RemoteExecute
 
   def addIdentity(privateKeyPath: String) = jsch.addIdentity(privateKeyPath)
 
+  val password = Source.fromFile("/home/gonephishing/dbpedia-extraction/passwd").getLines.mkString
+
   def createSession(userName: String, host: String): Session =
   {
+    println("User name: "+userName)
+
     val session = jsch.getSession(userName, host)
+    session.setPassword(password)
     session.setConfig("UserKnownHostsFile", "/dev/null")
     session.setConfig("CheckHostIP", "no")
     session.setConfig("StrictHostKeyChecking", "no")
+
+
     session.connect()
+    println("Connected")
     session
   }
 

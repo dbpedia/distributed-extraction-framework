@@ -4,7 +4,7 @@ import com.esotericsoftware.kryo.{Kryo, Serializer}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.dbpedia.extraction.dataparser.ParserUtils
 import org.dbpedia.extraction.util.Language
-
+import scala.language.reflectiveCalls
 /**
  * Kryo serializer for org.dbpedia.extraction.dataparser.ParserUtils
  */

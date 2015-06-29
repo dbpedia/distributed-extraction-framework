@@ -78,7 +78,7 @@ object SparkUtils
       sc = new SparkContext(conf)
       // No logging is done upon omitting 'with Logging' - some package problem?
       setLogLevels(Level.INFO, Seq("org.apache.spark.ui.jobs.DBpediaJobProgressListener"))
-      sc.addSparkListener(new DBpediaJobProgressListener(sc))
+      sc.addSparkListener(new DBpediaJobProgressListener(conf))
     }
     sc
   }

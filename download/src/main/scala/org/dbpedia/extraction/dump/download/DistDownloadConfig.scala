@@ -94,7 +94,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
    * Local temporary directory on worker nodes. Each dump file/chunk is downloaded to this directory before being moved to
    * the configured Hadoop file system.
    */
-  var localTempDir: File = new File("/tmp")
+  var localTempDir: File = new File("/data/")
 
   /**
    * Slave hostnames. By default consists only of 127.0.0.1.
@@ -138,18 +138,24 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   override protected val (hadoopCoreConf, hadoopHdfsConf, hadoopMapredConf) =
     parseHadoopConfigs(null, args)
 
+
   parse(null, args) // parse the distributed download config file/variables
 
   if (homeDir == null)
     throw Usage("Config variable extraction-framework-home not specified!")
 
+  println("parse dist-config file done")
+
   downloadConfig.parse(null, generalArgs.toList) // parse the general config file
 
+  println("config files parsed")
   if ((languages.nonEmpty || ranges.nonEmpty) && baseUrl == null) throw Usage("No base URL")
   if (languages.isEmpty && ranges.isEmpty) throw Usage("No files to download")
 
+  println("base url and files to download found")
   // First checks the Path obtained from distributed download config, then the general download config file if the former is null
-  baseDir = checkPathExists(Option(if (baseDir != null)
+  baseDir = checkPathExists(Option(
+                                   if (baseDir != null)
                                    {
                                      baseDir
                                    }
@@ -175,6 +181,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   def parse(dir: File, args: TraversableOnce[String])
   {
     // Parse the distributed config variables and accumulate the remaining variables in the generalArgs list.
+
     for (a <- args; arg = a.trim) arg match
     {
       case Ignored(_) => // ignore comments
@@ -243,7 +250,7 @@ class DistDownloadConfig(args: TraversableOnce[String]) extends HadoopConfigurab
   }
 }
 
-object Usage
+object exUsage
 {
   def apply(msg: String, arg: String = null, cause: Throwable = null): Exception =
   {
