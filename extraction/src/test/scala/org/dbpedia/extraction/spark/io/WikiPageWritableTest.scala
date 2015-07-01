@@ -3,13 +3,13 @@ package org.dbpedia.extraction.spark.io
 import org.junit.Assert._
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.FunSuite
+import org.scalatest.FunSuiteLike
 import org.dbpedia.extraction.sources.XMLSource
 import scala.xml.XML
 import org.dbpedia.extraction.util.Language
 
 @RunWith(classOf[JUnitRunner])
-class WikiPageWritableTest extends WritableTest[WikiPageWritable] with FunSuite
+class WikiPageWritableTest extends WritableTest[WikiPageWritable] with FunSuiteLike
 {
   test("Verify that serialization-deserialization works properly")
   {

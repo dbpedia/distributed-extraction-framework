@@ -2,13 +2,13 @@ package org.dbpedia.extraction.spark.io
 
 import org.junit.runner.RunWith
 import org.scalatest.junit.JUnitRunner
-import org.scalatest.FunSuite
+import org.scalatest.FunSuiteLike
 import org.dbpedia.extraction.destinations.Quad
 import scala.util.Random
 import org.junit.Assert._
 
 @RunWith(classOf[JUnitRunner])
-class QuadSeqWritableTest extends WritableTest[QuadSeqWritable] with FunSuite
+class QuadSeqWritableTest extends WritableTest[QuadSeqWritable] with FunSuiteLike
 {
   test("Verify that serialization-deserialization works properly")
   {

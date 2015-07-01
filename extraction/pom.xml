@@ -112,7 +112,7 @@
 
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_2.10</artifactId>
+            <artifactId>spark-core_2.11</artifactId>
             <version>${spark.version}</version>
             <scope>provided</scope>
         </dependency>
@@ -131,7 +131,7 @@
 
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_2.10</artifactId>
+            <artifactId>scalatest_2.11</artifactId>
             <scope>test</scope>
         </dependency>
 
