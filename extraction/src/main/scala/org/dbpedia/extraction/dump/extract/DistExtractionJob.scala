@@ -9,7 +9,7 @@ import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.util.StringUtils
 import org.apache.spark.SparkContext._
 import org.dbpedia.util.Exceptions
-
+import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
 /**
  * Executes an extraction using Spark.
  *
@@ -30,7 +30,7 @@ class DistExtractionJob(extractor: => RootExtractor, rdd: => RDD[WikiPage], name
     val failedPages = sc.accumulator(0)
 
     val loggerBC = sc.broadcast(logger)
-    val extractorBC = sc.broadcast(extractor)
+    val extractorBC = sc.broadcast(KryoSerializationWrapper(extractor))
     val namespacesBC = sc.broadcast(namespaces)
 
     val startTime = System.currentTimeMillis
@@ -42,7 +42,7 @@ class DistExtractionJob(extractor: => RootExtractor, rdd: => RDD[WikiPage], name
           // Take a WikiPage, perform the extraction with a set of extractors and return the results as a Seq[Quad].
           val (success, graph) = try
           {
-            (true, if (namespacesBC.value.contains(page.title.namespace)) Some(extractorBC.value.apply(page)) else None)
+            (true, if (namespacesBC.value.contains(page.title.namespace)) Some(extractorBC.value.value.apply(page)) else None)
           }
           catch
             {
