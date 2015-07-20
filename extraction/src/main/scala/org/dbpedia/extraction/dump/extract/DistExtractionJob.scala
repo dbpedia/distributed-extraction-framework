@@ -7,9 +7,10 @@ import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.Namespace
 import org.apache.spark.rdd.RDD
 import org.dbpedia.extraction.util.StringUtils
-import org.apache.spark.SparkContext._
 import org.dbpedia.util.Exceptions
 import org.dbpedia.extraction.spark.serialize.KryoSerializationWrapper
+import org.apache.spark.SparkContext._
+
 /**
  * Executes an extraction using Spark.
  *
