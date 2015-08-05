@@ -99,19 +99,19 @@
         <dependency>
             <groupId>org.dbpedia.extraction</groupId>
             <artifactId>core</artifactId>
-            <version>4.0-SNAPSHOT</version>
+            <version>4.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>org.dbpedia.extraction</groupId>
             <artifactId>dump</artifactId>
-            <version>4.0-SNAPSHOT</version>
+            <version>4.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>
             <groupId>org.dbpedia.extraction</groupId>
             <artifactId>scripts</artifactId>
-            <version>4.0-SNAPSHOT</version>
+            <version>4.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>
