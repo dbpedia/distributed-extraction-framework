@@ -14,14 +14,14 @@ trait RemoteExecute
 
   def addIdentity(privateKeyPath: String) = jsch.addIdentity(privateKeyPath)
 
-  val password = Source.fromFile("/home/gonephishing/dbpedia-extraction/passwd").getLines.mkString
+  //val password = Source.fromFile("/home/gonephishing/dbpedia-extraction/passwd").getLines.mkString
 
   def createSession(userName: String, host: String): Session =
   {
     println("User name: "+userName)
 
     val session = jsch.getSession(userName, host)
-    session.setPassword(password)
+    //session.setPassword(password)
     session.setConfig("UserKnownHostsFile", "/dev/null")
     session.setConfig("CheckHostIP", "no")
     session.setConfig("StrictHostKeyChecking", "no")

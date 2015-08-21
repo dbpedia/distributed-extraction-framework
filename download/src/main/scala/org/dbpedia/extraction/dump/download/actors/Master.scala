@@ -97,10 +97,10 @@ class Master(workTimeout: FiniteDuration, mirrors: Seq[URL], threadsPerMirror: I
       else
       {
         log.info("Worker registered: {}", workerId)
-        workers += (workerId -> WorkerState(sender, status = Idle))
+          workers += (workerId -> WorkerState(sender, status = Idle))
         if (pendingDownloads.nonEmpty)
           sender ! DownloadIsReady
-      }
+       }
 
     case WorkerRequestsDownload(workerId) =>
       if (pendingDownloads.nonEmpty)
