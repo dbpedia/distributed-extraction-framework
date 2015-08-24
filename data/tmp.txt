@@ -1,0 +1,6 @@
+This file is here because an empty data/ directory cannot be added to github. And the zip files that are part of this directory should not be pushed to github as
+that won't make sense either. The only option was to either add contents of this directory to the .gitignore file so that the directory is pushed but not the
+contents or put this dummy file in here to satisfy the needs of the octocat. And this folder is mandatory to have as this is what specified in the template
+files and I don't want my template files to fail and the end user to panic. 
+
+Thus this file was created...
