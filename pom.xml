@@ -7,7 +7,7 @@
     <groupId>org.dbpedia</groupId>
     <artifactId>distributed-extraction</artifactId>
     <packaging>pom</packaging>
-    <version>4.0-SNAPSHOT</version>
+    <version>4.1-SNAPSHOT</version>
     <name>Parent POM of the DBpedia Distributed Extraction Framework</name>
 
     <properties>
