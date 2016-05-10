@@ -1,0 +1,24 @@
+sudo: false
+language: scala
+scala:
+    - 2.11.7
+jdk:
+    - oraclejdk8
+    - oraclejdk7
+    - openjdk7
+# branches:
+#   only:
+#     - master
+before_install:
+  - sed -i.bak -e 's|https://nexus.codehaus.org/snapshots/|https://oss.sonatype.org/content/repositories/codehaus-snapshots/|g' ~/.m2/settings.xml
+  # - whereiam=$PWD && git clone https://github.com/dbpedia/extraction-framework.git ~/extraction-framework && cd ~/extraction-framework && mvn install -Dmaven.test.skip=true -Dmaven.javadoc.skip=true && cd $whereiam
+script: "mvn test"
+notifications:
+  email:
+    recipients:
+      - dang.duong@gmail.com
+    on_success: change
+    on_failure: change
+cache:
+  directories:
+  - $HOME/.m2
