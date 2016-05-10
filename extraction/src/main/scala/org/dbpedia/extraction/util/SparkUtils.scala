@@ -60,15 +60,15 @@ object SparkUtils
       for ((property, value) <- config.sparkProperties)
         conf.set(property, value)
       conf.setSparkHome(config.sparkHome)
-      val distJarName = if (Files.exists(Paths.get("target/distributed-4.0-SNAPSHOT.jar")))
+      val distJarName = if (Files.exists(Paths.get("target/extraction-4.1-SNAPSHOT.jar")))
       {
-        "target/distributed-4.0-SNAPSHOT.jar"
-      } else if (Files.exists(Paths.get("distributed/target/distributed-4.0-SNAPSHOT.jar")))
+        "target/extraction-4.1-SNAPSHOT.jar"
+      } else if (Files.exists(Paths.get("extraction/target/extraction-4.1-SNAPSHOT.jar")))
       {
-        "distributed/target/distributed-4.0-SNAPSHOT.jar"
+        "extraction/target/extraction-4.1-SNAPSHOT.jar"
       } else
       {
-        throw new FileNotFoundException("distributed-4.0-SNAPSHOT.jar cannot be found in distributed/target. Please run mvn install -Dmaven.test.skip=true to build JAR first.")
+        throw new FileNotFoundException("extraction-4.1-SNAPSHOT.jar cannot be found in extraction/target. Please run mvn install -Dmaven.test.skip=true to build JAR first.")
       }
 
       conf.setJars(List(distJarName))
