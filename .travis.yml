@@ -13,7 +13,7 @@ script: "mvn test"
 notifications:
   email:
     recipients:
-      - dang.duong@gmail.com
+      - riteshoneinamillion@gmail.com
     on_success: change
     on_failure: change
 cache:
